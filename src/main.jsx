@@ -832,12 +832,15 @@ function ShopAdvances({
       </div>
 
       <div className={`shop-payment-card ${balance === 0 ? 'paid' : 'pending'}`}>
-        <div>
+        <div className="shop-payment-top">
+          <div>
+            <span>Monthly payment</span>
+            <strong>{formatMoney(balance)} pending</strong>
+            <small>{formatMoney(paid)} paid from {formatMoney(netSalary)}</small>
+          </div>
           <span className={`payment-seal ${balance === 0 ? 'paid' : 'not-paid'}`}>
             <span>{balance === 0 ? 'Paid' : 'Not paid'}</span>
           </span>
-          <strong>{formatMoney(paid)} paid</strong>
-          <small>Salary after advances: {formatMoney(netSalary)}</small>
         </div>
         <div className="payment-actions shop-payment-actions">
           <button type="button" className="mark-paid" onClick={() => onSavePayment(netSalary)}>

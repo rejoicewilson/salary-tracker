@@ -394,38 +394,55 @@ input {
   margin-top: 10px;
   border: 1px solid #dfe8e1;
   border-radius: 12px;
-  background: #fbfdfb;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 249, 0.96)),
+    #ffffff;
   padding: 12px;
 }
 
 .shop-payment-card.paid {
-  border-color: #35a05a;
-  box-shadow: 0 0 0 1px rgba(53, 160, 90, 0.1);
+  border-color: #b8dcc5;
+  box-shadow: inset 3px 0 0 #35a05a;
 }
 
 .shop-payment-card.pending {
-  border-color: #d85a50;
-  box-shadow: 0 0 0 1px rgba(216, 90, 80, 0.1);
+  border-color: #efd3cf;
+  box-shadow: inset 3px 0 0 #d85a50;
 }
 
+.shop-payment-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shop-payment-top span:first-child,
 .shop-payment-card strong,
 .shop-payment-card small {
   display: block;
 }
 
+.shop-payment-top span:first-child {
+  color: #65736b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .shop-payment-card strong {
-  margin-top: 8px;
-  font-size: 16px;
+  margin-top: 4px;
+  font-size: 18px;
 }
 
 .shop-payment-card small {
-  margin-top: 3px;
+  margin-top: 4px;
   color: #65736b;
   font-size: 12px;
 }
 
 .shop-payment-actions {
   grid-column: auto;
+  grid-template-columns: 1fr 82px;
 }
 
 .reason-tabs {
