@@ -1236,11 +1236,11 @@ function RubberAccount({
     <div className="rubber-account">
       <div className="advance-summary rubber-summary">
         <div>
-          <span>Earned</span>
+          <span>Open earned</span>
           <strong>{formatMoney(earned)}</strong>
         </div>
         <div>
-          <span>{extraAdvance > 0 ? 'Extra advance' : 'Pending'}</span>
+          <span>{extraAdvance > 0 ? 'Advance balance' : 'Pending'}</span>
           <strong>{formatMoney(extraAdvance > 0 ? extraAdvance : balance)}</strong>
         </div>
       </div>
@@ -1248,17 +1248,17 @@ function RubberAccount({
       <div className={`shop-payment-card ${balance === 0 ? 'paid' : 'pending'}`}>
         <div className="shop-payment-top">
           <div>
-            <span>Rubber payment</span>
-            <strong>{formatMoney(balance)} pending</strong>
-            <small>
-              {formatMoney(paid)} paid, {formatMoney(advanceTotal)} advance
-              {extraAdvance > 0 ? `, ${formatMoney(extraAdvance)} extra` : ''}
-              {openingAdvanceTotal > 0 ? `, ${formatMoney(openingAdvanceTotal)} opening balance` : ''}
-              {closedThroughDay > 0 ? `, counting after day ${closedThroughDay}` : ''}
-            </small>
+            <span>Open payment</span>
+            <strong>{extraAdvance > 0 ? `${formatMoney(extraAdvance)} extra advance` : `${formatMoney(balance)} pending`}</strong>
+            <div className="rubber-lines">
+              <span>Earned: {formatMoney(earned)}</span>
+              <span>Advance: {formatMoney(advanceTotal)}</span>
+              {openingAdvanceTotal > 0 && <span>Opening: {formatMoney(openingAdvanceTotal)}</span>}
+              {closedThroughDay > 0 && <span>Started after day {closedThroughDay}</span>}
+            </div>
           </div>
           <span className={`payment-seal ${balance === 0 ? 'paid' : 'not-paid'}`}>
-            <span>{balance === 0 ? 'Paid' : 'Not paid'}</span>
+            <span>{balance === 0 ? 'Clear' : 'Open'}</span>
           </span>
         </div>
         <div className="payment-actions shop-payment-actions">
