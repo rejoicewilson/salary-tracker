@@ -28,24 +28,46 @@ create table if not exists ration_weekly_payments (
   created_at timestamptz not null default now()
 );
 
+create table if not exists shop_advances (
+  id text primary key,
+  employee_id text not null references employees(id) on delete cascade,
+  work_month text not null,
+  advance_date date not null,
+  reason text not null check (reason in ('Current bill', 'Recharge', 'Other')),
+  note text not null default '',
+  amount numeric not null default 0,
+  created_at timestamptz not null default now()
+);
+
 alter table employees enable row level security;
 alter table attendance_records enable row level security;
 alter table ration_weekly_payments enable row level security;
+alter table shop_advances enable row level security;
 
+drop policy if exists "Allow public employee access" on employees;
 create policy "Allow public employee access"
 on employees
 for all
 using (true)
 with check (true);
 
+drop policy if exists "Allow public attendance access" on attendance_records;
 create policy "Allow public attendance access"
 on attendance_records
 for all
 using (true)
 with check (true);
 
+drop policy if exists "Allow public ration payment access" on ration_weekly_payments;
 create policy "Allow public ration payment access"
 on ration_weekly_payments
+for all
+using (true)
+with check (true);
+
+drop policy if exists "Allow public shop advance access" on shop_advances;
+create policy "Allow public shop advance access"
+on shop_advances
 for all
 using (true)
 with check (true);

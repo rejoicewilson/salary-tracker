@@ -43,6 +43,8 @@ const ATTENDANCE_STATUSES = {
   holiday: { label: 'Holiday', multiplier: 0 },
 };
 
+const SHOP_ADVANCE_REASONS = ['Current bill', 'Recharge', 'Other'];
+
 function createId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
   return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -126,7 +128,7 @@ function getWeekStartText(weekKey) {
 
 function readLocalData() {
   const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) return { records: [], rationPayments: [] };
+  if (!saved) return { records: [], rationPayments: [], shopAdvances: [] };
 
   try {
     const parsed = JSON.parse(saved);
@@ -144,10 +146,18 @@ function readLocalData() {
         payment?.week_key &&
         Number.isFinite(Number(payment?.amount)),
     ) : [];
+    const shopAdvances = Array.isArray(parsed.shopAdvances) ? parsed.shopAdvances.filter(
+      (advance) =>
+        advance?.id &&
+        advance?.employee_id === 'shop-employee' &&
+        advance?.work_month &&
+        advance?.advance_date &&
+        Number.isFinite(Number(advance?.amount)),
+    ) : [];
 
-    return { records, rationPayments };
+    return { records, rationPayments, shopAdvances };
   } catch {
-    return { records: [], rationPayments: [] };
+    return { records: [], rationPayments: [], shopAdvances: [] };
   }
 }
 
@@ -190,6 +200,7 @@ function App() {
   const [month, setMonth] = useState(getMonthValue());
   const [records, setRecords] = useState([]);
   const [rationPayments, setRationPayments] = useState([]);
+  const [shopAdvances, setShopAdvances] = useState([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(EMPLOYEES[0].id);
   const [attendancePicker, setAttendancePicker] = useState(null);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
@@ -203,14 +214,20 @@ function App() {
         const local = readLocalData();
         setRecords(local.records);
         setRationPayments(local.rationPayments);
+        setShopAdvances(local.shopAdvances);
         return;
       }
 
       await supabase.from('employees').upsert(EMPLOYEES);
-      const [{ data: recordRows, error: recordError }, { data: paymentRows, error: paymentError }] =
+      const [
+        { data: recordRows, error: recordError },
+        { data: paymentRows, error: paymentError },
+        { data: advanceRows, error: advanceError },
+      ] =
         await Promise.all([
           supabase.from('attendance_records').select('*'),
           supabase.from('ration_weekly_payments').select('*'),
+          supabase.from('shop_advances').select('*'),
         ]);
       if (!alive) return;
 
@@ -218,11 +235,13 @@ function App() {
         const local = readLocalData();
         setRecords(local.records);
         setRationPayments(local.rationPayments);
+        setShopAdvances(local.shopAdvances);
         return;
       }
 
       setRecords(recordRows || []);
       setRationPayments(paymentRows || []);
+      setShopAdvances(advanceError ? [] : advanceRows || []);
     }
 
     loadData();
@@ -233,9 +252,9 @@ function App() {
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ records, rationPayments }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ records, rationPayments, shopAdvances }));
     }
-  }, [records, rationPayments]);
+  }, [records, rationPayments, shopAdvances]);
 
   const monthRecords = useMemo(
     () => records.filter((record) => record.work_month === month),
@@ -273,6 +292,13 @@ function App() {
     [month, records, rationPayments],
   );
 
+  const monthShopAdvances = useMemo(
+    () => shopAdvances
+      .filter((advance) => advance.employee_id === 'shop-employee' && advance.work_month === month)
+      .sort((a, b) => b.advance_date.localeCompare(a.advance_date)),
+    [month, shopAdvances],
+  );
+
   async function saveRationPayment(weekKey, amount) {
     const paymentAmount = Number(amount) || 0;
     const existing = rationPayments.find((payment) => payment.week_key === weekKey);
@@ -299,6 +325,35 @@ function App() {
 
     if (isSupabaseConfigured) {
       await supabase.from('ration_weekly_payments').insert(payment);
+    }
+  }
+
+  async function addShopAdvance({ amount, reason, note }) {
+    const advanceAmount = Number(amount) || 0;
+    if (advanceAmount <= 0) return;
+
+    const advance = {
+      id: createId(),
+      employee_id: 'shop-employee',
+      work_month: month,
+      advance_date: formatDateKey(new Date()),
+      reason,
+      note: note.trim(),
+      amount: advanceAmount,
+    };
+
+    setShopAdvances((current) => [...current, advance]);
+
+    if (isSupabaseConfigured) {
+      await supabase.from('shop_advances').insert(advance);
+    }
+  }
+
+  async function deleteShopAdvance(id) {
+    setShopAdvances((current) => current.filter((advance) => advance.id !== id));
+
+    if (isSupabaseConfigured) {
+      await supabase.from('shop_advances').delete().eq('id', id);
     }
   }
 
@@ -446,7 +501,10 @@ function App() {
           monthRecords={monthRecords}
           onToggle={toggleRecord}
           onSavePayment={saveRationPayment}
+          onAddShopAdvance={addShopAdvance}
+          onDeleteShopAdvance={deleteShopAdvance}
           rationWeeklySummary={rationWeeklySummary}
+          shopAdvances={monthShopAdvances}
           summary={summaries.byEmployee.get(selectedEmployee.id) || { workCount: 0, salary: 0 }}
         />
       )}
@@ -585,13 +643,18 @@ function EmployeePanel({
   month,
   monthRecords,
   onSavePayment,
+  onAddShopAdvance,
+  onDeleteShopAdvance,
   onToggle,
   rationWeeklySummary,
+  shopAdvances,
   summary,
 }) {
   const rule = EMPLOYEE_TYPES[employee.type];
   const days = Array.from({ length: getDaysInMonth(month) }, (_, index) => index + 1);
   const firstDayOffset = getDayDate(month, 1).getDay();
+  const shopAdvanceTotal = shopAdvances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
+  const shopBalance = Math.max(rule.rate - shopAdvanceTotal, 0);
 
   return (
     <section className="panel employee-panel">
@@ -605,10 +668,10 @@ function EmployeePanel({
       </div>
 
       <div className="salary-line">
-        <span>{rule.salaryLabel}</span>
+        <span>{employee.type === 'shop' ? 'Balance salary' : rule.salaryLabel}</span>
         <strong>
           {employee.type === 'shop'
-            ? formatMoney(rule.rate)
+            ? formatMoney(shopBalance)
             : `${summary.workCount} = ${formatMoney(summary.salary)}`}
         </strong>
       </div>
@@ -653,7 +716,104 @@ function EmployeePanel({
           weeks={rationWeeklySummary}
         />
       )}
+
+      {employee.type === 'shop' && (
+        <ShopAdvances
+          advances={shopAdvances}
+          balance={shopBalance}
+          onAddAdvance={onAddShopAdvance}
+          onDeleteAdvance={onDeleteShopAdvance}
+          total={shopAdvanceTotal}
+        />
+      )}
     </section>
+  );
+}
+
+function ShopAdvances({ advances, balance, onAddAdvance, onDeleteAdvance, total }) {
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState(SHOP_ADVANCE_REASONS[0]);
+  const [note, setNote] = useState('');
+
+  function submitAdvance(event) {
+    event.preventDefault();
+    onAddAdvance({ amount, reason, note });
+    setAmount('');
+    setNote('');
+  }
+
+  return (
+    <div className="shop-advances">
+      <div className="advance-summary">
+        <div>
+          <span>Taken this month</span>
+          <strong>{formatMoney(total)}</strong>
+        </div>
+        <div>
+          <span>Balance salary</span>
+          <strong>{formatMoney(balance)}</strong>
+        </div>
+      </div>
+
+      <form className="advance-form" onSubmit={submitAdvance}>
+        <div className="reason-tabs" role="group" aria-label="Advance reason">
+          {SHOP_ADVANCE_REASONS.map((item) => (
+            <button
+              className={reason === item ? 'active' : ''}
+              key={item}
+              type="button"
+              onClick={() => setReason(item)}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+        <div className="advance-entry">
+          <input
+            min="1"
+            type="number"
+            inputMode="numeric"
+            placeholder="Amount"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+          />
+          <button type="submit">Add</button>
+        </div>
+        <input
+          type="text"
+          placeholder="Note optional"
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
+      </form>
+
+      <div className="advance-list">
+        {advances.length === 0 ? (
+          <p className="status">No bill or recharge money added for this month.</p>
+        ) : (
+          advances.map((advance) => (
+            <div className="advance-row" key={advance.id}>
+              <div>
+                <strong>{advance.reason}</strong>
+                <span>
+                  {new Date(`${advance.advance_date}T00:00:00`).toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                  })}
+                  {advance.note ? ` - ${advance.note}` : ''}
+                </span>
+              </div>
+              <div>
+                <strong>{formatMoney(Number(advance.amount || 0))}</strong>
+                <button type="button" onClick={() => onDeleteAdvance(advance.id)}>
+                  Clear
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 
