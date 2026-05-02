@@ -401,13 +401,13 @@ input {
 }
 
 .shop-payment-card.paid {
-  border-color: #b8dcc5;
-  box-shadow: inset 3px 0 0 #35a05a;
+  border-color: #35a05a;
+  box-shadow: 0 0 0 1px rgba(53, 160, 90, 0.1);
 }
 
 .shop-payment-card.pending {
-  border-color: #efd3cf;
-  box-shadow: inset 3px 0 0 #d85a50;
+  border-color: #d85a50;
+  box-shadow: 0 0 0 1px rgba(216, 90, 80, 0.1);
 }
 
 .shop-payment-top {
