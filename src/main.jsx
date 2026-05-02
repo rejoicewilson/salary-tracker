@@ -127,6 +127,50 @@ function getRubberPaymentPeriodTaps(payment, payments, taps) {
     .sort((a, b) => getRubberTapTime(a).localeCompare(getRubberTapTime(b)));
 }
 
+function getRubberPaymentPeriodAdvances(payment, payments, advances) {
+  const closedAt = getRubberPaymentTime(payment);
+  const previousPayment = payments
+    .filter((item) => item.id !== payment.id && getRubberPaymentTime(item) < closedAt)
+    .sort((a, b) => getRubberPaymentTime(b).localeCompare(getRubberPaymentTime(a)))[0];
+  const startsAfter = previousPayment ? getRubberPaymentTime(previousPayment) : '';
+
+  return advances
+    .filter((advance) => {
+      const advanceTime = getRubberAdvanceTime(advance);
+      return (
+        advance.employee_id === 'rubber-tapping-employee' &&
+        advanceTime > startsAfter &&
+        advanceTime <= closedAt
+      );
+    })
+    .sort((a, b) => getRubberAdvanceTime(a).localeCompare(getRubberAdvanceTime(b)));
+}
+
+function getRubberTallyRows(taps, advances) {
+  const tapRows = taps.map((tap) => ({
+    id: `tap-${tap.id}`,
+    type: 'tap',
+    date: tap.tap_date,
+    time: getRubberTapTime(tap),
+    tapCount: Number(tap.count || 0),
+    rate: EMPLOYEE_TYPES.rubber.rate,
+    advance: 0,
+    amount: Number(tap.count || 0) * EMPLOYEE_TYPES.rubber.rate,
+  }));
+  const advanceRows = advances.map((advance) => ({
+    id: `advance-${advance.id}`,
+    type: 'advance',
+    date: advance.advance_date,
+    time: getRubberAdvanceTime(advance),
+    tapCount: 0,
+    rate: 0,
+    advance: Number(advance.amount || 0),
+    amount: 0,
+  }));
+
+  return [...tapRows, ...advanceRows].sort((a, b) => a.time.localeCompare(b.time));
+}
+
 function getDayFromDateText(dateText) {
   const parts = String(dateText || '').split('-').map(Number);
   return parts.length === 3 ? parts[2] : 0;
@@ -1235,6 +1279,7 @@ function RubberAccount({
   const [tapCount, setTapCount] = useState('1');
   const [tapNote, setTapNote] = useState('');
   const [openPaymentId, setOpenPaymentId] = useState(null);
+  const openTallyRows = getRubberTallyRows(taps, openAdvances);
 
   function submitAdvance(event) {
     event.preventDefault();
@@ -1340,62 +1385,20 @@ function RubberAccount({
       </form>
 
       <div className="account-history">
-        <h3>Open taps</h3>
-        <div className="advance-list">
-          {taps.length === 0 ? (
-            <p className="status">No taps added for this open payment.</p>
-          ) : (
-            taps.map((tap) => (
-              <div className="advance-row" key={tap.id}>
-                <div>
-                  <strong>{tap.count} taps</strong>
-                  <span>
-                    {new Date(`${tap.tap_date}T00:00:00`).toLocaleDateString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                    })}
-                    {tap.note ? ` - ${tap.note}` : ''}
-                  </span>
-                </div>
-                <div>
-                  <strong>{formatMoney(Number(tap.count || 0) * EMPLOYEE_TYPES.rubber.rate)}</strong>
-                  <button type="button" onClick={() => onDeleteTap(tap.id)}>
-                    Clear
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="account-history">
-        <h3>Advance amounts</h3>
-        <div className="advance-list">
-          {openAdvances.length === 0 ? (
-            <p className="status">No advance amount added for this open payment.</p>
-          ) : (
-            openAdvances.map((advance) => (
-              <div className="advance-row" key={advance.id}>
-                <div>
-                  <strong>Advance</strong>
-                  <span>
-                    {new Date(`${advance.advance_date}T00:00:00`).toLocaleDateString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                    })}
-                    {advance.note ? ` - ${advance.note}` : ''}
-                  </span>
-                </div>
-                <div>
-                  <strong>{formatMoney(Number(advance.amount || 0))}</strong>
-                  <button type="button" onClick={() => onDeleteAdvance(advance.id)}>
-                    Clear
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
+        <h3>Open tally</h3>
+        <div className="tally-table-wrap open-tally">
+          <div className="tally-summary">
+            <span>Taps: {taps.reduce((sum, tap) => sum + Number(tap.count || 0), 0)}</span>
+            <span>Earned: {formatMoney(earned)}</span>
+            <span>Advance: {formatMoney(advanceTotal)}</span>
+          </div>
+          <RubberTallyTable
+            advances={openAdvances}
+            onDeleteAdvance={onDeleteAdvance}
+            onDeleteTap={onDeleteTap}
+            rows={openTallyRows}
+            taps={taps}
+          />
         </div>
       </div>
 
@@ -1407,8 +1410,11 @@ function RubberAccount({
           ) : (
             payments.map((payment) => {
               const periodTaps = getRubberPaymentPeriodTaps(payment, payments, allTaps);
+              const periodAdvances = getRubberPaymentPeriodAdvances(payment, payments, advances);
               const periodTapCount = periodTaps.reduce((sum, tap) => sum + Number(tap.count || 0), 0);
               const periodEarned = periodTapCount * EMPLOYEE_TYPES.rubber.rate;
+              const periodAdvanceTotal = periodAdvances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
+              const periodRows = getRubberTallyRows(periodTaps, periodAdvances);
               const expanded = openPaymentId === payment.id;
 
               return (
@@ -1456,38 +1462,9 @@ function RubberAccount({
                     <div className="tally-summary">
                       <span>Taps: {periodTapCount}</span>
                       <span>Earned: {formatMoney(periodEarned)}</span>
+                      <span>Advance: {formatMoney(periodAdvanceTotal)}</span>
                     </div>
-                    <table className="tally-table">
-                      <thead>
-                        <tr>
-                          <th>Date</th>
-                          <th>Tap</th>
-                          <th>Rate</th>
-                          <th>Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {periodTaps.length === 0 ? (
-                          <tr>
-                            <td colSpan="4">No tap entries found for this payment.</td>
-                          </tr>
-                        ) : (
-                          periodTaps.map((tap) => (
-                            <tr key={tap.id}>
-                              <td>
-                                {new Date(`${tap.tap_date}T00:00:00`).toLocaleDateString('en-IN', {
-                                  day: '2-digit',
-                                  month: 'short',
-                                })}
-                              </td>
-                              <td>{tap.count}</td>
-                              <td>{formatMoney(EMPLOYEE_TYPES.rubber.rate)}</td>
-                              <td>{formatMoney(Number(tap.count || 0) * EMPLOYEE_TYPES.rubber.rate)}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                    <RubberTallyTable rows={periodRows} />
                   </div>
                 )}
               </div>
@@ -1497,6 +1474,70 @@ function RubberAccount({
         </div>
       </div>
     </div>
+  );
+}
+
+function RubberTallyTable({
+  advances = [],
+  onDeleteAdvance,
+  onDeleteTap,
+  rows,
+  taps = [],
+}) {
+  return (
+    <table className="tally-table rubber-tally-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Tap</th>
+          <th>Rate</th>
+          <th>Advance</th>
+          <th>Amount</th>
+          {(onDeleteTap || onDeleteAdvance) && <th></th>}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 ? (
+          <tr>
+            <td colSpan={onDeleteTap || onDeleteAdvance ? 6 : 5}>No entries found.</td>
+          </tr>
+        ) : (
+          rows.map((row) => {
+            const tap = row.type === 'tap'
+              ? taps.find((item) => item.id === row.id.replace('tap-', ''))
+              : null;
+            const advance = row.type === 'advance'
+              ? advances.find((item) => item.id === row.id.replace('advance-', ''))
+              : null;
+
+            return (
+              <tr className={row.type === 'advance' ? 'advance-tally-row' : ''} key={row.id}>
+                <td>
+                  {new Date(`${row.date}T00:00:00`).toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                  })}
+                </td>
+                <td>{row.tapCount || '-'}</td>
+                <td>{row.rate ? formatMoney(row.rate) : '-'}</td>
+                <td>{row.advance ? formatMoney(row.advance) : '-'}</td>
+                <td>{row.amount ? formatMoney(row.amount) : '-'}</td>
+                {(onDeleteTap || onDeleteAdvance) && (
+                  <td>
+                    {row.type === 'tap' && tap && (
+                      <button type="button" onClick={() => onDeleteTap(tap.id)}>Clear</button>
+                    )}
+                    {row.type === 'advance' && advance && (
+                      <button type="button" onClick={() => onDeleteAdvance(advance.id)}>Clear</button>
+                    )}
+                  </td>
+                )}
+              </tr>
+            );
+          })
+        )}
+      </tbody>
+    </table>
   );
 }
 
