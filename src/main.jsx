@@ -63,12 +63,6 @@ function createMonthValue(year, month) {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
 
-function getNextMonthValue(monthValue) {
-  const { year, month } = getMonthParts(monthValue);
-  const next = new Date(year, month, 1);
-  return getMonthValue(next);
-}
-
 function formatMonthTitle(monthValue) {
   return getDayDate(monthValue, 1).toLocaleDateString('en-IN', {
     month: 'long',
@@ -394,14 +388,22 @@ function App() {
   );
 
   const monthRubberOpeningAdvances = useMemo(
-    () => rubberPayments
-      .filter(
-        (payment) =>
-          payment.employee_id === 'rubber-tapping-employee' &&
-          payment.carry_forward_month === month &&
-          Number(payment.carry_forward_amount || 0) > 0,
-      )
-      .sort((a, b) => b.paid_date.localeCompare(a.paid_date)),
+    () => {
+      const latestPreviousPayment = rubberPayments
+        .filter(
+          (payment) =>
+            payment.employee_id === 'rubber-tapping-employee' &&
+            payment.work_month < month,
+        )
+        .sort((a, b) => {
+          const monthCompare = b.work_month.localeCompare(a.work_month);
+          return monthCompare || b.paid_date.localeCompare(a.paid_date);
+        })[0];
+
+      return Number(latestPreviousPayment?.carry_forward_amount || 0) > 0
+        ? [latestPreviousPayment]
+        : [];
+    },
     [month, rubberPayments],
   );
 
@@ -538,7 +540,6 @@ function App() {
       paid_date: formatDateKey(new Date()),
       amount: paymentAmount,
       carry_forward_amount: nextCarry,
-      carry_forward_month: nextCarry > 0 ? getNextMonthValue(month) : null,
     };
 
     setRubberPayments((current) => [...current, payment]);
@@ -1144,7 +1145,7 @@ function RubberAccount({
             <small>
               {formatMoney(paid)} paid, {formatMoney(advanceTotal)} advance
               {extraAdvance > 0 ? `, ${formatMoney(extraAdvance)} extra` : ''}
-              {openingAdvanceTotal > 0 ? `, ${formatMoney(openingAdvanceTotal)} opening` : ''}
+              {openingAdvanceTotal > 0 ? `, ${formatMoney(openingAdvanceTotal)} opening balance` : ''}
             </small>
           </div>
           <span className={`payment-seal ${balance === 0 ? 'paid' : 'not-paid'}`}>
@@ -1237,7 +1238,7 @@ function RubberAccount({
                       month: 'short',
                     })}
                     {Number(payment.carry_forward_amount || 0) > 0
-                      ? ` - ${formatMoney(Number(payment.carry_forward_amount || 0))} opening next month`
+                      ? ` - ${formatMoney(Number(payment.carry_forward_amount || 0))} opening next payment`
                       : ''}
                   </span>
                 </div>
