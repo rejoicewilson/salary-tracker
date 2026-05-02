@@ -1,6 +1,6 @@
 import React, { Component, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from './supabase';
 import './styles.css';
 
@@ -50,6 +50,22 @@ function createId() {
 
 function getMonthValue(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function getMonthParts(monthValue) {
+  const [year, month] = monthValue.split('-').map(Number);
+  return { year, month };
+}
+
+function createMonthValue(year, month) {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+function formatMonthTitle(monthValue) {
+  return getDayDate(monthValue, 1).toLocaleDateString('en-IN', {
+    month: 'long',
+    year: 'numeric',
+  });
 }
 
 function formatMoney(value) {
@@ -176,6 +192,7 @@ function App() {
   const [rationPayments, setRationPayments] = useState([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(EMPLOYEES[0].id);
   const [attendancePicker, setAttendancePicker] = useState(null);
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -256,7 +273,6 @@ function App() {
     [month, records, rationPayments],
   );
 
-  const rationPending = rationWeeklySummary.reduce((sum, week) => sum + week.pending, 0);
   async function saveRationPayment(weekKey, amount) {
     const paymentAmount = Number(amount) || 0;
     const existing = rationPayments.find((payment) => payment.week_key === weekKey);
@@ -386,34 +402,41 @@ function App() {
         <div className="header-controls">
           <div>
             <span>Month</span>
-            <strong>{getDayDate(month, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</strong>
+            <strong>{formatMonthTitle(month)}</strong>
           </div>
-          <label className="month-icon-button" aria-label="Select month">
+          <button
+            className="month-icon-button"
+            type="button"
+            aria-label="Select month"
+            onClick={() => setMonthPickerOpen(true)}
+          >
             <CalendarDays size={20} />
-            <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
-          </label>
+          </button>
         </div>
       </section>
 
       <section className="panel employee-selector" aria-label="Select employee">
-        <div className="field">
-          <label htmlFor="employeeSelect">Employee</label>
-          <select
-            id="employeeSelect"
-            value={selectedEmployee.id}
-            onChange={(event) => setSelectedEmployeeId(event.target.value)}
-          >
-            {EMPLOYEES.map((employee) => {
-              const rule = EMPLOYEE_TYPES[employee.type];
-              const summary = summaries.byEmployee.get(employee.id) || { workCount: 0, salary: 0 };
+        <p className="eyebrow">Employee</p>
+        <div className="employee-tabs">
+          {EMPLOYEES.map((employee) => {
+            const rule = EMPLOYEE_TYPES[employee.type];
+            const active = employee.id === selectedEmployee.id;
 
-              return (
-                <option key={employee.id} value={employee.id}>
-                  {employee.name} - {rule.label}
-                </option>
-              );
-            })}
-          </select>
+            return (
+              <button
+                className={`employee-tab ${active ? 'active' : ''}`}
+                key={employee.id}
+                type="button"
+                onClick={() => setSelectedEmployeeId(employee.id)}
+              >
+                <span>
+                  <strong>{employee.name}</strong>
+                  <small>{rule.label}</small>
+                </span>
+                {active && <Check size={18} />}
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -439,7 +462,68 @@ function App() {
         />
       )}
 
+      {monthPickerOpen && (
+        <MonthPicker
+          month={month}
+          onClose={() => setMonthPickerOpen(false)}
+          onSelect={(nextMonth) => {
+            setMonth(nextMonth);
+            setMonthPickerOpen(false);
+          }}
+        />
+      )}
+
     </main>
+  );
+}
+
+function MonthPicker({ month, onClose, onSelect }) {
+  const { year, month: selectedMonth } = getMonthParts(month);
+  const [visibleYear, setVisibleYear] = useState(year);
+  const monthNames = Array.from({ length: 12 }, (_, index) =>
+    new Date(visibleYear, index, 1).toLocaleDateString('en-IN', { month: 'short' }),
+  );
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section className="sheet-modal month-sheet" role="dialog" aria-modal="true">
+        <div className="sheet-header">
+          <div>
+            <p className="eyebrow">Select month</p>
+            <h2>{visibleYear}</h2>
+          </div>
+          <div className="year-actions">
+            <button type="button" aria-label="Previous year" onClick={() => setVisibleYear((current) => current - 1)}>
+              <ChevronLeft size={18} />
+            </button>
+            <button type="button" aria-label="Next year" onClick={() => setVisibleYear((current) => current + 1)}>
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+        <div className="month-grid">
+          {monthNames.map((monthName, index) => {
+            const monthNumber = index + 1;
+            const value = createMonthValue(visibleYear, monthNumber);
+            const active = visibleYear === year && monthNumber === selectedMonth;
+
+            return (
+              <button
+                className={active ? 'active' : ''}
+                key={monthName}
+                type="button"
+                onClick={() => onSelect(value)}
+              >
+                {monthName}
+              </button>
+            );
+          })}
+        </div>
+        <button className="cancel-button" type="button" onClick={onClose}>
+          Cancel
+        </button>
+      </section>
+    </div>
   );
 }
 
