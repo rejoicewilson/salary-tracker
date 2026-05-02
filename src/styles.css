@@ -200,7 +200,7 @@ input {
 }
 
 .employee-tab {
-  min-height: 66px;
+  min-height: 54px;
   width: 100%;
   display: grid;
   grid-template-rows: 1fr auto;
@@ -214,23 +214,13 @@ input {
 }
 
 .employee-tab span,
-.employee-tab strong,
-.employee-tab small {
+.employee-tab strong {
   display: block;
 }
 
 .employee-tab strong {
   font-size: 13px;
   line-height: 1.2;
-}
-
-.employee-tab small {
-  margin-top: 3px;
-  color: #65736b;
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
 }
 
 .employee-tab svg {

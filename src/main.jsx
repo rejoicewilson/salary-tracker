@@ -431,7 +431,6 @@ function App() {
               >
                 <span>
                   <strong>{rule.label}</strong>
-                  <small>{employee.name.replace(' Employee', '')}</small>
                 </span>
                 {active && <Check size={18} />}
               </button>
