@@ -326,6 +326,25 @@ input {
   color: #ffffff;
 }
 
+.day-button.active.settled {
+  position: relative;
+  border-color: #d85a50;
+  background: #fff7f6;
+  color: #9f2f28;
+}
+
+.day-button.active.settled::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  height: 2px;
+  border-radius: 999px;
+  background: #d85a50;
+  transform: rotate(-18deg);
+}
+
 .day-button.holiday {
   background: #ecefec;
   color: #929b95;

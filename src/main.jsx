@@ -96,6 +96,11 @@ function formatDateKey(date) {
   ].join('-');
 }
 
+function getDayFromDateText(dateText) {
+  const parts = String(dateText || '').split('-').map(Number);
+  return parts.length === 3 ? parts[2] : 0;
+}
+
 function getRationWeekStart(monthValue, day) {
   const date = getDayDate(monthValue, day);
   const dayOfWeek = date.getDay();
@@ -393,7 +398,7 @@ function App() {
         .filter(
           (payment) =>
             payment.employee_id === 'rubber-tapping-employee' &&
-            payment.work_month < month,
+            payment.work_month <= month,
         )
         .sort((a, b) => {
           const monthCompare = b.work_month.localeCompare(a.work_month);
@@ -875,19 +880,28 @@ function EmployeePanel({
   const shopPaid = Number(shopSalaryPayment?.amount || 0);
   const shopNetSalary = Math.max(rule.rate - shopAdvanceTotal, 0);
   const shopBalance = Math.max(shopNetSalary - shopPaid, 0);
-  const rubberManualAdvanceTotal = rubberAdvances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
+  const latestRubberPayment = rubberPayments[0];
+  const rubberClosedThroughDay = latestRubberPayment ? getDayFromDateText(latestRubberPayment.paid_date) : 0;
+  const openRubberRecords = employee.type === 'rubber'
+    ? monthRecords.filter(
+      (record) =>
+        record.employee_id === employee.id &&
+        record.work_day > rubberClosedThroughDay,
+    )
+    : [];
+  const openRubberCount = openRubberRecords.length;
+  const openRubberEarned = openRubberCount * EMPLOYEE_TYPES.rubber.rate;
+  const rubberManualAdvanceTotal = rubberAdvances
+    .filter((advance) => getDayFromDateText(advance.advance_date) > rubberClosedThroughDay)
+    .reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
   const rubberOpeningAdvanceTotal = rubberOpeningAdvances.reduce(
     (sum, payment) => sum + Number(payment.carry_forward_amount || 0),
     0,
   );
   const rubberAdvanceTotal = rubberManualAdvanceTotal + rubberOpeningAdvanceTotal;
   const rubberPaid = rubberPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-  const rubberCarryForwardOut = rubberPayments.reduce(
-    (sum, payment) => sum + Number(payment.carry_forward_amount || 0),
-    0,
-  );
-  const rubberBalance = Math.max(summary.salary - rubberAdvanceTotal - rubberPaid, 0);
-  const rubberExtraAdvance = Math.max(rubberAdvanceTotal + rubberPaid - summary.salary - rubberCarryForwardOut, 0);
+  const rubberBalance = Math.max(openRubberEarned - rubberAdvanceTotal, 0);
+  const rubberExtraAdvance = Math.max(rubberAdvanceTotal - openRubberEarned, 0);
 
   return (
     <section className="panel employee-panel">
@@ -905,7 +919,9 @@ function EmployeePanel({
         <strong>
           {employee.type === 'shop'
             ? formatMoney(shopBalance)
-            : `${summary.workCount} = ${formatMoney(summary.salary)}`}
+            : employee.type === 'rubber'
+              ? `${openRubberCount} = ${formatMoney(openRubberEarned)}`
+              : `${summary.workCount} = ${formatMoney(summary.salary)}`}
         </strong>
       </div>
 
@@ -925,12 +941,13 @@ function EmployeePanel({
           );
           const sunday = employee.type === 'ration' && isSunday(month, day);
           const label = employee.type === 'rubber'
-            ? 'Tap'
+            ? day <= rubberClosedThroughDay ? 'Closed' : 'Tap'
             : ATTENDANCE_STATUSES[dayRecord?.status]?.label;
+          const settledRubberDay = employee.type === 'rubber' && active && day <= rubberClosedThroughDay;
 
           return (
             <button
-              className={`day-button ${active ? `active ${dayRecord?.status || 'present'}` : ''} ${sunday ? 'holiday' : ''}`}
+              className={`day-button ${active ? `active ${dayRecord?.status || 'present'}` : ''} ${settledRubberDay ? 'settled' : ''} ${sunday ? 'holiday' : ''}`}
               disabled={sunday}
               key={day}
               type="button"
@@ -968,7 +985,8 @@ function EmployeePanel({
           advances={rubberAdvances}
           advanceTotal={rubberAdvanceTotal}
           balance={rubberBalance}
-          earned={summary.salary}
+          closedThroughDay={rubberClosedThroughDay}
+          earned={openRubberEarned}
           extraAdvance={rubberExtraAdvance}
           openingAdvanceTotal={rubberOpeningAdvanceTotal}
           onAddAdvance={onAddRubberAdvance}
@@ -1104,6 +1122,7 @@ function RubberAccount({
   advances,
   advanceTotal,
   balance,
+  closedThroughDay,
   earned,
   extraAdvance,
   openingAdvanceTotal,
@@ -1146,6 +1165,7 @@ function RubberAccount({
               {formatMoney(paid)} paid, {formatMoney(advanceTotal)} advance
               {extraAdvance > 0 ? `, ${formatMoney(extraAdvance)} extra` : ''}
               {openingAdvanceTotal > 0 ? `, ${formatMoney(openingAdvanceTotal)} opening balance` : ''}
+              {closedThroughDay > 0 ? `, counting after day ${closedThroughDay}` : ''}
             </small>
           </div>
           <span className={`payment-seal ${balance === 0 ? 'paid' : 'not-paid'}`}>
