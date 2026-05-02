@@ -854,6 +854,7 @@ function EmployeePanel({
   const rubberAdvanceTotal = rubberAdvances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
   const rubberPaid = rubberPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
   const rubberBalance = Math.max(summary.salary - rubberAdvanceTotal - rubberPaid, 0);
+  const rubberExtraAdvance = Math.max(rubberAdvanceTotal + rubberPaid - summary.salary, 0);
 
   return (
     <section className="panel employee-panel">
@@ -935,6 +936,7 @@ function EmployeePanel({
           advanceTotal={rubberAdvanceTotal}
           balance={rubberBalance}
           earned={summary.salary}
+          extraAdvance={rubberExtraAdvance}
           onAddAdvance={onAddRubberAdvance}
           onAddPayment={onAddRubberPayment}
           onDeleteAdvance={onDeleteRubberAdvance}
@@ -1069,6 +1071,7 @@ function RubberAccount({
   advanceTotal,
   balance,
   earned,
+  extraAdvance,
   onAddAdvance,
   onAddPayment,
   onDeleteAdvance,
@@ -1094,8 +1097,8 @@ function RubberAccount({
           <strong>{formatMoney(earned)}</strong>
         </div>
         <div>
-          <span>Pending</span>
-          <strong>{formatMoney(balance)}</strong>
+          <span>{extraAdvance > 0 ? 'Extra advance' : 'Pending'}</span>
+          <strong>{formatMoney(extraAdvance > 0 ? extraAdvance : balance)}</strong>
         </div>
       </div>
 
@@ -1104,14 +1107,22 @@ function RubberAccount({
           <div>
             <span>Rubber payment</span>
             <strong>{formatMoney(balance)} pending</strong>
-            <small>{formatMoney(paid)} paid, {formatMoney(advanceTotal)} advance</small>
+            <small>
+              {formatMoney(paid)} paid, {formatMoney(advanceTotal)} advance
+              {extraAdvance > 0 ? `, ${formatMoney(extraAdvance)} extra` : ''}
+            </small>
           </div>
           <span className={`payment-seal ${balance === 0 ? 'paid' : 'not-paid'}`}>
             <span>{balance === 0 ? 'Paid' : 'Not paid'}</span>
           </span>
         </div>
         <div className="payment-actions shop-payment-actions">
-          <button type="button" className="mark-paid" onClick={() => onAddPayment(balance)}>
+          <button
+            type="button"
+            className="mark-paid"
+            disabled={balance === 0}
+            onClick={() => onAddPayment(balance)}
+          >
             Close payment
           </button>
           <button

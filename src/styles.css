@@ -683,6 +683,11 @@ input {
   color: white;
 }
 
+.mark-paid:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .clear-paid {
   border: 1px solid #d7e2da;
   background: #ffffff;
