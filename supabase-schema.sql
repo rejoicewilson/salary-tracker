@@ -65,8 +65,16 @@ create table if not exists rubber_payments (
   work_month text not null,
   paid_date date not null,
   amount numeric not null default 0,
+  carry_forward_amount numeric not null default 0,
+  carry_forward_month text,
   created_at timestamptz not null default now()
 );
+
+alter table rubber_payments
+add column if not exists carry_forward_amount numeric not null default 0;
+
+alter table rubber_payments
+add column if not exists carry_forward_month text;
 
 alter table employees enable row level security;
 alter table attendance_records enable row level security;

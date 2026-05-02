@@ -63,6 +63,12 @@ function createMonthValue(year, month) {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
 
+function getNextMonthValue(monthValue) {
+  const { year, month } = getMonthParts(monthValue);
+  const next = new Date(year, month, 1);
+  return getMonthValue(next);
+}
+
 function formatMonthTitle(monthValue) {
   return getDayDate(monthValue, 1).toLocaleDateString('en-IN', {
     month: 'long',
@@ -387,6 +393,18 @@ function App() {
     [month, rubberPayments],
   );
 
+  const monthRubberOpeningAdvances = useMemo(
+    () => rubberPayments
+      .filter(
+        (payment) =>
+          payment.employee_id === 'rubber-tapping-employee' &&
+          payment.carry_forward_month === month &&
+          Number(payment.carry_forward_amount || 0) > 0,
+      )
+      .sort((a, b) => b.paid_date.localeCompare(a.paid_date)),
+    [month, rubberPayments],
+  );
+
   async function saveRationPayment(weekKey, amount) {
     const paymentAmount = Number(amount) || 0;
     const existing = rationPayments.find((payment) => payment.week_key === weekKey);
@@ -508,9 +526,10 @@ function App() {
     }
   }
 
-  async function addRubberPayment(amount) {
+  async function addRubberPayment(amount, carryForwardAmount = 0) {
     const paymentAmount = Number(amount) || 0;
-    if (paymentAmount <= 0) return;
+    const nextCarry = Number(carryForwardAmount) || 0;
+    if (paymentAmount <= 0 && nextCarry <= 0) return;
 
     const payment = {
       id: createId(),
@@ -518,6 +537,8 @@ function App() {
       work_month: month,
       paid_date: formatDateKey(new Date()),
       amount: paymentAmount,
+      carry_forward_amount: nextCarry,
+      carry_forward_month: nextCarry > 0 ? getNextMonthValue(month) : null,
     };
 
     setRubberPayments((current) => [...current, payment]);
@@ -688,6 +709,7 @@ function App() {
           onDeleteRubberPayment={deleteRubberPayment}
           rationWeeklySummary={rationWeeklySummary}
           rubberAdvances={monthRubberAdvances}
+          rubberOpeningAdvances={monthRubberOpeningAdvances}
           rubberPayments={monthRubberPayments}
           shopAdvances={monthShopAdvances}
           shopSalaryPayment={monthShopSalaryPayment}
@@ -839,6 +861,7 @@ function EmployeePanel({
   onToggle,
   rationWeeklySummary,
   rubberAdvances,
+  rubberOpeningAdvances,
   rubberPayments,
   shopAdvances,
   shopSalaryPayment,
@@ -851,10 +874,19 @@ function EmployeePanel({
   const shopPaid = Number(shopSalaryPayment?.amount || 0);
   const shopNetSalary = Math.max(rule.rate - shopAdvanceTotal, 0);
   const shopBalance = Math.max(shopNetSalary - shopPaid, 0);
-  const rubberAdvanceTotal = rubberAdvances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
+  const rubberManualAdvanceTotal = rubberAdvances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
+  const rubberOpeningAdvanceTotal = rubberOpeningAdvances.reduce(
+    (sum, payment) => sum + Number(payment.carry_forward_amount || 0),
+    0,
+  );
+  const rubberAdvanceTotal = rubberManualAdvanceTotal + rubberOpeningAdvanceTotal;
   const rubberPaid = rubberPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const rubberCarryForwardOut = rubberPayments.reduce(
+    (sum, payment) => sum + Number(payment.carry_forward_amount || 0),
+    0,
+  );
   const rubberBalance = Math.max(summary.salary - rubberAdvanceTotal - rubberPaid, 0);
-  const rubberExtraAdvance = Math.max(rubberAdvanceTotal + rubberPaid - summary.salary, 0);
+  const rubberExtraAdvance = Math.max(rubberAdvanceTotal + rubberPaid - summary.salary - rubberCarryForwardOut, 0);
 
   return (
     <section className="panel employee-panel">
@@ -937,6 +969,7 @@ function EmployeePanel({
           balance={rubberBalance}
           earned={summary.salary}
           extraAdvance={rubberExtraAdvance}
+          openingAdvanceTotal={rubberOpeningAdvanceTotal}
           onAddAdvance={onAddRubberAdvance}
           onAddPayment={onAddRubberPayment}
           onDeleteAdvance={onDeleteRubberAdvance}
@@ -1072,6 +1105,7 @@ function RubberAccount({
   balance,
   earned,
   extraAdvance,
+  openingAdvanceTotal,
   onAddAdvance,
   onAddPayment,
   onDeleteAdvance,
@@ -1110,6 +1144,7 @@ function RubberAccount({
             <small>
               {formatMoney(paid)} paid, {formatMoney(advanceTotal)} advance
               {extraAdvance > 0 ? `, ${formatMoney(extraAdvance)} extra` : ''}
+              {openingAdvanceTotal > 0 ? `, ${formatMoney(openingAdvanceTotal)} opening` : ''}
             </small>
           </div>
           <span className={`payment-seal ${balance === 0 ? 'paid' : 'not-paid'}`}>
@@ -1120,8 +1155,8 @@ function RubberAccount({
           <button
             type="button"
             className="mark-paid"
-            disabled={balance === 0}
-            onClick={() => onAddPayment(balance)}
+            disabled={balance === 0 && extraAdvance === 0}
+            onClick={() => onAddPayment(balance, extraAdvance)}
           >
             Close payment
           </button>
@@ -1201,6 +1236,9 @@ function RubberAccount({
                       day: '2-digit',
                       month: 'short',
                     })}
+                    {Number(payment.carry_forward_amount || 0) > 0
+                      ? ` - ${formatMoney(Number(payment.carry_forward_amount || 0))} opening next month`
+                      : ''}
                   </span>
                 </div>
                 <div>
