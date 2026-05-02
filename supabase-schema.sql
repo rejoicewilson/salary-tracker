@@ -54,6 +54,7 @@ create table if not exists rubber_advances (
   employee_id text not null references employees(id) on delete cascade,
   work_month text not null,
   advance_date date not null,
+  advance_at timestamptz not null default now(),
   note text not null default '',
   amount numeric not null default 0,
   created_at timestamptz not null default now()
@@ -63,6 +64,7 @@ create table if not exists rubber_taps (
   id text primary key,
   employee_id text not null references employees(id) on delete cascade,
   tap_date date not null,
+  tap_at timestamptz not null default now(),
   count integer not null default 1 check (count > 0),
   note text not null default '',
   created_at timestamptz not null default now()
@@ -73,10 +75,20 @@ create table if not exists rubber_payments (
   employee_id text not null references employees(id) on delete cascade,
   work_month text not null,
   paid_date date not null,
+  closed_at timestamptz not null default now(),
   amount numeric not null default 0,
   carry_forward_amount numeric not null default 0,
   created_at timestamptz not null default now()
 );
+
+alter table rubber_advances
+add column if not exists advance_at timestamptz not null default now();
+
+alter table rubber_taps
+add column if not exists tap_at timestamptz not null default now();
+
+alter table rubber_payments
+add column if not exists closed_at timestamptz not null default now();
 
 alter table rubber_payments
 add column if not exists carry_forward_amount numeric not null default 0;

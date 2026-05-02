@@ -96,6 +96,22 @@ function formatDateKey(date) {
   ].join('-');
 }
 
+function getNowIso() {
+  return new Date().toISOString();
+}
+
+function getRubberTapTime(tap) {
+  return tap.tap_at || `${tap.tap_date}T00:00:00.000Z`;
+}
+
+function getRubberAdvanceTime(advance) {
+  return advance.advance_at || `${advance.advance_date}T00:00:00.000Z`;
+}
+
+function getRubberPaymentTime(payment) {
+  return payment.closed_at || `${payment.paid_date}T00:00:00.000Z`;
+}
+
 function getDayFromDateText(dateText) {
   const parts = String(dateText || '').split('-').map(Number);
   return parts.length === 3 ? parts[2] : 0;
@@ -511,6 +527,7 @@ function App() {
       employee_id: 'rubber-tapping-employee',
       work_month: getMonthValue(new Date()),
       advance_date: formatDateKey(new Date()),
+      advance_at: getNowIso(),
       note: note.trim(),
       amount: advanceAmount,
     };
@@ -530,6 +547,7 @@ function App() {
       id: createId(),
       employee_id: 'rubber-tapping-employee',
       tap_date: formatDateKey(new Date()),
+      tap_at: getNowIso(),
       count: tapCount,
       note: note.trim(),
     };
@@ -567,6 +585,7 @@ function App() {
       employee_id: 'rubber-tapping-employee',
       work_month: getMonthValue(new Date()),
       paid_date: formatDateKey(new Date()),
+      closed_at: getNowIso(),
       amount: paymentAmount,
       carry_forward_amount: nextCarry,
     };
@@ -915,19 +934,20 @@ function EmployeePanel({
   const todayKey = formatDateKey(new Date());
   const latestAnyRubberPayment = rubberPayments
     .filter((payment) => payment.employee_id === 'rubber-tapping-employee')
-    .sort((a, b) => b.paid_date.localeCompare(a.paid_date))[0];
+    .sort((a, b) => getRubberPaymentTime(b).localeCompare(getRubberPaymentTime(a)))[0];
   const rubberSettledThroughDate = latestAnyRubberPayment?.paid_date || '';
   const latestRubberPayment = latestAnyRubberPayment;
   const rubberClosedThroughDate = latestRubberPayment?.paid_date || '';
+  const rubberClosedThroughTime = latestRubberPayment ? getRubberPaymentTime(latestRubberPayment) : '';
   const openRubberTaps = employee.type === 'rubber'
     ? rubberTaps
       .filter(
         (tap) =>
           tap.employee_id === 'rubber-tapping-employee' &&
-          tap.tap_date > rubberClosedThroughDate &&
+          getRubberTapTime(tap) > rubberClosedThroughTime &&
           tap.tap_date <= todayKey,
       )
-      .sort((a, b) => b.tap_date.localeCompare(a.tap_date))
+      .sort((a, b) => getRubberTapTime(b).localeCompare(getRubberTapTime(a)))
     : [];
   const openRubberCount = openRubberTaps.reduce((sum, tap) => sum + Number(tap.count || 0), 0);
   const openRubberEarned = openRubberCount * EMPLOYEE_TYPES.rubber.rate;
@@ -935,10 +955,10 @@ function EmployeePanel({
     .filter(
       (advance) =>
         advance.employee_id === 'rubber-tapping-employee' &&
-        advance.advance_date > rubberClosedThroughDate &&
+        getRubberAdvanceTime(advance) > rubberClosedThroughTime &&
         advance.advance_date <= todayKey,
     )
-    .sort((a, b) => b.advance_date.localeCompare(a.advance_date));
+    .sort((a, b) => getRubberAdvanceTime(b).localeCompare(getRubberAdvanceTime(a)));
   const rubberManualAdvanceTotal = openRubberAdvances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
   const rubberOpeningAdvanceTotal = Number(latestRubberPayment?.carry_forward_amount || 0);
   const rubberAdvanceTotal = rubberManualAdvanceTotal + rubberOpeningAdvanceTotal;
