@@ -128,7 +128,7 @@ function getWeekStartText(weekKey) {
 
 function readLocalData() {
   const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) return { records: [], rationPayments: [], shopAdvances: [] };
+  if (!saved) return { records: [], rationPayments: [], shopAdvances: [], shopSalaryPayments: [] };
 
   try {
     const parsed = JSON.parse(saved);
@@ -154,10 +154,17 @@ function readLocalData() {
         advance?.advance_date &&
         Number.isFinite(Number(advance?.amount)),
     ) : [];
+    const shopSalaryPayments = Array.isArray(parsed.shopSalaryPayments) ? parsed.shopSalaryPayments.filter(
+      (payment) =>
+        payment?.id &&
+        payment?.employee_id === 'shop-employee' &&
+        payment?.work_month &&
+        Number.isFinite(Number(payment?.amount)),
+    ) : [];
 
-    return { records, rationPayments, shopAdvances };
+    return { records, rationPayments, shopAdvances, shopSalaryPayments };
   } catch {
-    return { records: [], rationPayments: [], shopAdvances: [] };
+    return { records: [], rationPayments: [], shopAdvances: [], shopSalaryPayments: [] };
   }
 }
 
@@ -201,6 +208,7 @@ function App() {
   const [records, setRecords] = useState([]);
   const [rationPayments, setRationPayments] = useState([]);
   const [shopAdvances, setShopAdvances] = useState([]);
+  const [shopSalaryPayments, setShopSalaryPayments] = useState([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(EMPLOYEES[0].id);
   const [attendancePicker, setAttendancePicker] = useState(null);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
@@ -215,6 +223,7 @@ function App() {
         setRecords(local.records);
         setRationPayments(local.rationPayments);
         setShopAdvances(local.shopAdvances);
+        setShopSalaryPayments(local.shopSalaryPayments);
         return;
       }
 
@@ -223,11 +232,13 @@ function App() {
         { data: recordRows, error: recordError },
         { data: paymentRows, error: paymentError },
         { data: advanceRows, error: advanceError },
+        { data: shopPaymentRows, error: shopPaymentError },
       ] =
         await Promise.all([
           supabase.from('attendance_records').select('*'),
           supabase.from('ration_weekly_payments').select('*'),
           supabase.from('shop_advances').select('*'),
+          supabase.from('shop_salary_payments').select('*'),
         ]);
       if (!alive) return;
 
@@ -236,12 +247,14 @@ function App() {
         setRecords(local.records);
         setRationPayments(local.rationPayments);
         setShopAdvances(local.shopAdvances);
+        setShopSalaryPayments(local.shopSalaryPayments);
         return;
       }
 
       setRecords(recordRows || []);
       setRationPayments(paymentRows || []);
       setShopAdvances(advanceError ? [] : advanceRows || []);
+      setShopSalaryPayments(shopPaymentError ? [] : shopPaymentRows || []);
     }
 
     loadData();
@@ -252,9 +265,12 @@ function App() {
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ records, rationPayments, shopAdvances }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ records, rationPayments, shopAdvances, shopSalaryPayments }),
+      );
     }
-  }, [records, rationPayments, shopAdvances]);
+  }, [records, rationPayments, shopAdvances, shopSalaryPayments]);
 
   const monthRecords = useMemo(
     () => records.filter((record) => record.work_month === month),
@@ -297,6 +313,13 @@ function App() {
       .filter((advance) => advance.employee_id === 'shop-employee' && advance.work_month === month)
       .sort((a, b) => b.advance_date.localeCompare(a.advance_date)),
     [month, shopAdvances],
+  );
+
+  const monthShopSalaryPayment = useMemo(
+    () => shopSalaryPayments.find(
+      (payment) => payment.employee_id === 'shop-employee' && payment.work_month === month,
+    ),
+    [month, shopSalaryPayments],
   );
 
   async function saveRationPayment(weekKey, amount) {
@@ -354,6 +377,41 @@ function App() {
 
     if (isSupabaseConfigured) {
       await supabase.from('shop_advances').delete().eq('id', id);
+    }
+  }
+
+  async function saveShopSalaryPayment(amount) {
+    const paymentAmount = Number(amount) || 0;
+    const existing = shopSalaryPayments.find(
+      (payment) => payment.employee_id === 'shop-employee' && payment.work_month === month,
+    );
+
+    if (existing) {
+      const updated = { ...existing, amount: paymentAmount, paid_date: formatDateKey(new Date()) };
+      setShopSalaryPayments((current) =>
+        current.map((payment) => (payment.id === existing.id ? updated : payment)),
+      );
+
+      if (isSupabaseConfigured) {
+        await supabase
+          .from('shop_salary_payments')
+          .update({ amount: paymentAmount, paid_date: updated.paid_date })
+          .eq('id', existing.id);
+      }
+      return;
+    }
+
+    const payment = {
+      id: createId(),
+      employee_id: 'shop-employee',
+      work_month: month,
+      paid_date: formatDateKey(new Date()),
+      amount: paymentAmount,
+    };
+    setShopSalaryPayments((current) => [...current, payment]);
+
+    if (isSupabaseConfigured) {
+      await supabase.from('shop_salary_payments').insert(payment);
     }
   }
 
@@ -503,8 +561,10 @@ function App() {
           onSavePayment={saveRationPayment}
           onAddShopAdvance={addShopAdvance}
           onDeleteShopAdvance={deleteShopAdvance}
+          onSaveShopSalaryPayment={saveShopSalaryPayment}
           rationWeeklySummary={rationWeeklySummary}
           shopAdvances={monthShopAdvances}
+          shopSalaryPayment={monthShopSalaryPayment}
           summary={summaries.byEmployee.get(selectedEmployee.id) || { workCount: 0, salary: 0 }}
         />
       )}
@@ -645,16 +705,20 @@ function EmployeePanel({
   onSavePayment,
   onAddShopAdvance,
   onDeleteShopAdvance,
+  onSaveShopSalaryPayment,
   onToggle,
   rationWeeklySummary,
   shopAdvances,
+  shopSalaryPayment,
   summary,
 }) {
   const rule = EMPLOYEE_TYPES[employee.type];
   const days = Array.from({ length: getDaysInMonth(month) }, (_, index) => index + 1);
   const firstDayOffset = getDayDate(month, 1).getDay();
   const shopAdvanceTotal = shopAdvances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
-  const shopBalance = Math.max(rule.rate - shopAdvanceTotal, 0);
+  const shopPaid = Number(shopSalaryPayment?.amount || 0);
+  const shopNetSalary = Math.max(rule.rate - shopAdvanceTotal, 0);
+  const shopBalance = Math.max(shopNetSalary - shopPaid, 0);
 
   return (
     <section className="panel employee-panel">
@@ -721,8 +785,11 @@ function EmployeePanel({
         <ShopAdvances
           advances={shopAdvances}
           balance={shopBalance}
+          netSalary={shopNetSalary}
           onAddAdvance={onAddShopAdvance}
           onDeleteAdvance={onDeleteShopAdvance}
+          onSavePayment={onSaveShopSalaryPayment}
+          paid={shopPaid}
           total={shopAdvanceTotal}
         />
       )}
@@ -730,7 +797,16 @@ function EmployeePanel({
   );
 }
 
-function ShopAdvances({ advances, balance, onAddAdvance, onDeleteAdvance, total }) {
+function ShopAdvances({
+  advances,
+  balance,
+  netSalary,
+  onAddAdvance,
+  onDeleteAdvance,
+  onSavePayment,
+  paid,
+  total,
+}) {
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState(SHOP_ADVANCE_REASONS[0]);
   const [note, setNote] = useState('');
@@ -750,8 +826,26 @@ function ShopAdvances({ advances, balance, onAddAdvance, onDeleteAdvance, total 
           <strong>{formatMoney(total)}</strong>
         </div>
         <div>
-          <span>Balance salary</span>
+          <span>Pending salary</span>
           <strong>{formatMoney(balance)}</strong>
+        </div>
+      </div>
+
+      <div className={`shop-payment-card ${balance === 0 ? 'paid' : 'pending'}`}>
+        <div>
+          <span className={`payment-seal ${balance === 0 ? 'paid' : 'not-paid'}`}>
+            <span>{balance === 0 ? 'Paid' : 'Not paid'}</span>
+          </span>
+          <strong>{formatMoney(paid)} paid</strong>
+          <small>Salary after advances: {formatMoney(netSalary)}</small>
+        </div>
+        <div className="payment-actions shop-payment-actions">
+          <button type="button" className="mark-paid" onClick={() => onSavePayment(netSalary)}>
+            Mark paid
+          </button>
+          <button type="button" className="clear-paid" onClick={() => onSavePayment(0)}>
+            Clear
+          </button>
         </div>
       </div>
 

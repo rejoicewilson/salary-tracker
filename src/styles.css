@@ -388,6 +388,46 @@ input {
   margin-top: 10px;
 }
 
+.shop-payment-card {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  border: 1px solid #dfe8e1;
+  border-radius: 12px;
+  background: #fbfdfb;
+  padding: 12px;
+}
+
+.shop-payment-card.paid {
+  border-color: #35a05a;
+  box-shadow: 0 0 0 1px rgba(53, 160, 90, 0.1);
+}
+
+.shop-payment-card.pending {
+  border-color: #d85a50;
+  box-shadow: 0 0 0 1px rgba(216, 90, 80, 0.1);
+}
+
+.shop-payment-card strong,
+.shop-payment-card small {
+  display: block;
+}
+
+.shop-payment-card strong {
+  margin-top: 8px;
+  font-size: 16px;
+}
+
+.shop-payment-card small {
+  margin-top: 3px;
+  color: #65736b;
+  font-size: 12px;
+}
+
+.shop-payment-actions {
+  grid-column: auto;
+}
+
 .reason-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
