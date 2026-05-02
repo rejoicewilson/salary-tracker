@@ -1,0 +1,25 @@
+{
+  "name": "Salary Attendance Tracker",
+  "short_name": "Salary Tracker",
+  "description": "Mobile salary, attendance, and weekly payment tracker.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#edf4ef",
+  "theme_color": "#16613a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
