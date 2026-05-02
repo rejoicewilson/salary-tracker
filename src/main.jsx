@@ -112,6 +112,21 @@ function getRubberPaymentTime(payment) {
   return payment.closed_at || `${payment.paid_date}T00:00:00.000Z`;
 }
 
+function getRubberPaymentPeriodTaps(payment, payments, taps) {
+  const closedAt = getRubberPaymentTime(payment);
+  const previousPayment = payments
+    .filter((item) => item.id !== payment.id && getRubberPaymentTime(item) < closedAt)
+    .sort((a, b) => getRubberPaymentTime(b).localeCompare(getRubberPaymentTime(a)))[0];
+  const startsAfter = previousPayment ? getRubberPaymentTime(previousPayment) : '';
+
+  return taps
+    .filter((tap) => {
+      const tapTime = getRubberTapTime(tap);
+      return tap.employee_id === 'rubber-tapping-employee' && tapTime > startsAfter && tapTime <= closedAt;
+    })
+    .sort((a, b) => getRubberTapTime(a).localeCompare(getRubberTapTime(b)));
+}
+
 function getDayFromDateText(dateText) {
   const parts = String(dateText || '').split('-').map(Number);
   return parts.length === 3 ? parts[2] : 0;
@@ -1053,6 +1068,7 @@ function EmployeePanel({
 
       {employee.type === 'rubber' && (
         <RubberAccount
+          allTaps={rubberTaps}
           advances={rubberAdvances}
           taps={openRubberTaps}
           openAdvances={openRubberAdvances}
@@ -1195,6 +1211,7 @@ function ShopAdvances({
 }
 
 function RubberAccount({
+  allTaps,
   advances,
   taps,
   openAdvances,
@@ -1217,6 +1234,7 @@ function RubberAccount({
   const [advanceNote, setAdvanceNote] = useState('');
   const [tapCount, setTapCount] = useState('1');
   const [tapNote, setTapNote] = useState('');
+  const [openPaymentId, setOpenPaymentId] = useState(null);
 
   function submitAdvance(event) {
     event.preventDefault();
@@ -1387,28 +1405,94 @@ function RubberAccount({
           {payments.length === 0 ? (
             <p className="status">No rubber payment closed for this month.</p>
           ) : (
-            payments.map((payment) => (
-              <div className="advance-row" key={payment.id}>
-                <div>
-                  <strong>Payment closed</strong>
-                  <span>
-                    {new Date(`${payment.paid_date}T00:00:00`).toLocaleDateString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                    })}
-                    {Number(payment.carry_forward_amount || 0) > 0
-                      ? ` - ${formatMoney(Number(payment.carry_forward_amount || 0))} opening next payment`
-                      : ''}
-                  </span>
+            payments.map((payment) => {
+              const periodTaps = getRubberPaymentPeriodTaps(payment, payments, allTaps);
+              const periodTapCount = periodTaps.reduce((sum, tap) => sum + Number(tap.count || 0), 0);
+              const periodEarned = periodTapCount * EMPLOYEE_TYPES.rubber.rate;
+              const expanded = openPaymentId === payment.id;
+
+              return (
+              <div className="payment-history-card" key={payment.id}>
+                <div
+                  className="advance-row history-toggle"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setOpenPaymentId((current) => (current === payment.id ? null : payment.id))}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setOpenPaymentId((current) => (current === payment.id ? null : payment.id));
+                    }
+                  }}
+                >
+                  <div>
+                    <strong>Payment closed</strong>
+                    <span>
+                      {new Date(`${payment.paid_date}T00:00:00`).toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                      })}
+                      {Number(payment.carry_forward_amount || 0) > 0
+                        ? ` - ${formatMoney(Number(payment.carry_forward_amount || 0))} opening next payment`
+                        : ''}
+                    </span>
+                  </div>
+                  <div>
+                    <strong>{formatMoney(Number(payment.amount || 0))}</strong>
+                    <span>{periodTapCount} taps</span>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDeletePayment(payment.id);
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <strong>{formatMoney(Number(payment.amount || 0))}</strong>
-                  <button type="button" onClick={() => onDeletePayment(payment.id)}>
-                    Clear
-                  </button>
-                </div>
+                {expanded && (
+                  <div className="tally-table-wrap">
+                    <div className="tally-summary">
+                      <span>Taps: {periodTapCount}</span>
+                      <span>Earned: {formatMoney(periodEarned)}</span>
+                    </div>
+                    <table className="tally-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Tap</th>
+                          <th>Rate</th>
+                          <th>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {periodTaps.length === 0 ? (
+                          <tr>
+                            <td colSpan="4">No tap entries found for this payment.</td>
+                          </tr>
+                        ) : (
+                          periodTaps.map((tap) => (
+                            <tr key={tap.id}>
+                              <td>
+                                {new Date(`${tap.tap_date}T00:00:00`).toLocaleDateString('en-IN', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                })}
+                              </td>
+                              <td>{tap.count}</td>
+                              <td>{formatMoney(EMPLOYEE_TYPES.rubber.rate)}</td>
+                              <td>{formatMoney(Number(tap.count || 0) * EMPLOYEE_TYPES.rubber.rate)}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

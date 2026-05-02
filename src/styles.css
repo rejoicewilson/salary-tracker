@@ -555,6 +555,84 @@ input {
   padding: 5px 9px;
 }
 
+.payment-history-card {
+  border: 1px solid #dfe8e1;
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.payment-history-card .advance-row {
+  border: 0;
+  border-radius: 0;
+}
+
+.history-toggle {
+  width: 100%;
+  cursor: pointer;
+}
+
+.history-toggle:focus-visible {
+  outline: 2px solid #16613a;
+  outline-offset: -2px;
+}
+
+.tally-table-wrap {
+  border-top: 1px solid #e1e9e3;
+  background: #fbfdfb;
+  padding: 10px;
+}
+
+.tally-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.tally-summary span {
+  border-radius: 999px;
+  background: #edf3ee;
+  color: #415047;
+  padding: 4px 7px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.tally-table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+  border: 1px solid #dfe8e1;
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: 12px;
+}
+
+.tally-table th,
+.tally-table td {
+  border-bottom: 1px solid #e8eee9;
+  padding: 8px 6px;
+  text-align: right;
+}
+
+.tally-table th:first-child,
+.tally-table td:first-child {
+  text-align: left;
+}
+
+.tally-table th {
+  background: #f1f6f2;
+  color: #5a6b60;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.tally-table tr:last-child td {
+  border-bottom: 0;
+}
+
 .account-history {
   margin-top: 12px;
 }
