@@ -101,6 +101,14 @@ function getDayFromDateText(dateText) {
   return parts.length === 3 ? parts[2] : 0;
 }
 
+function getRecordDateKey(record) {
+  return `${record.work_month}-${String(record.work_day).padStart(2, '0')}`;
+}
+
+function getMonthEndKey(monthValue) {
+  return formatDateKey(getDayDate(monthValue, getDaysInMonth(monthValue)));
+}
+
 function getRationWeekStart(monthValue, day) {
   const date = getDayDate(monthValue, day);
   const dayOfWeek = date.getDay();
@@ -378,37 +386,10 @@ function App() {
     [month, shopSalaryPayments],
   );
 
-  const monthRubberAdvances = useMemo(
-    () => rubberAdvances
-      .filter((advance) => advance.employee_id === 'rubber-tapping-employee' && advance.work_month === month)
-      .sort((a, b) => b.advance_date.localeCompare(a.advance_date)),
-    [month, rubberAdvances],
-  );
-
   const monthRubberPayments = useMemo(
     () => rubberPayments
       .filter((payment) => payment.employee_id === 'rubber-tapping-employee' && payment.work_month === month)
       .sort((a, b) => b.paid_date.localeCompare(a.paid_date)),
-    [month, rubberPayments],
-  );
-
-  const monthRubberOpeningAdvances = useMemo(
-    () => {
-      const latestPreviousPayment = rubberPayments
-        .filter(
-          (payment) =>
-            payment.employee_id === 'rubber-tapping-employee' &&
-            payment.work_month <= month,
-        )
-        .sort((a, b) => {
-          const monthCompare = b.work_month.localeCompare(a.work_month);
-          return monthCompare || b.paid_date.localeCompare(a.paid_date);
-        })[0];
-
-      return Number(latestPreviousPayment?.carry_forward_amount || 0) > 0
-        ? [latestPreviousPayment]
-        : [];
-    },
     [month, rubberPayments],
   );
 
@@ -702,6 +683,7 @@ function App() {
       {selectedEmployee && (
         <EmployeePanel
           employee={selectedEmployee}
+          allRecords={records}
           month={month}
           monthRecords={monthRecords}
           onToggle={toggleRecord}
@@ -714,9 +696,9 @@ function App() {
           onAddRubberPayment={addRubberPayment}
           onDeleteRubberPayment={deleteRubberPayment}
           rationWeeklySummary={rationWeeklySummary}
-          rubberAdvances={monthRubberAdvances}
-          rubberOpeningAdvances={monthRubberOpeningAdvances}
-          rubberPayments={monthRubberPayments}
+          rubberAdvances={rubberAdvances}
+          rubberPayments={rubberPayments}
+          visibleRubberPayments={monthRubberPayments}
           shopAdvances={monthShopAdvances}
           shopSalaryPayment={monthShopSalaryPayment}
           summary={summaries.byEmployee.get(selectedEmployee.id) || { workCount: 0, salary: 0 }}
@@ -854,6 +836,7 @@ function getRationWeeklySummary(month, allRecords, rationPayments) {
 
 function EmployeePanel({
   employee,
+  allRecords,
   month,
   monthRecords,
   onSavePayment,
@@ -867,8 +850,8 @@ function EmployeePanel({
   onToggle,
   rationWeeklySummary,
   rubberAdvances,
-  rubberOpeningAdvances,
   rubberPayments,
+  visibleRubberPayments,
   shopAdvances,
   shopSalaryPayment,
   summary,
@@ -880,28 +863,53 @@ function EmployeePanel({
   const shopPaid = Number(shopSalaryPayment?.amount || 0);
   const shopNetSalary = Math.max(rule.rate - shopAdvanceTotal, 0);
   const shopBalance = Math.max(shopNetSalary - shopPaid, 0);
-  const latestRubberPayment = rubberPayments[0];
-  const rubberClosedThroughDay = latestRubberPayment ? getDayFromDateText(latestRubberPayment.paid_date) : 0;
-  const openRubberRecords = employee.type === 'rubber'
-    ? monthRecords.filter(
-      (record) =>
-        record.employee_id === employee.id &&
-        record.work_day > rubberClosedThroughDay,
+  const monthEndKey = getMonthEndKey(month);
+  const latestAnyRubberPayment = rubberPayments
+    .filter((payment) => payment.employee_id === 'rubber-tapping-employee')
+    .sort((a, b) => b.paid_date.localeCompare(a.paid_date))[0];
+  const rubberSettledThroughDate = latestAnyRubberPayment?.paid_date || '';
+  const latestRubberPayment = rubberPayments
+    .filter(
+      (payment) =>
+        payment.employee_id === 'rubber-tapping-employee' &&
+        payment.paid_date <= monthEndKey,
     )
+    .sort((a, b) => b.paid_date.localeCompare(a.paid_date))[0];
+  const rubberClosedThroughDate = latestRubberPayment?.paid_date || '';
+  const openRubberRecords = employee.type === 'rubber'
+    ? allRecords.filter((record) => {
+      const dateKey = getRecordDateKey(record);
+      return (
+        record.employee_id === employee.id &&
+        dateKey > rubberClosedThroughDate &&
+        dateKey <= monthEndKey
+      );
+    })
     : [];
   const openRubberCount = openRubberRecords.length;
   const openRubberEarned = openRubberCount * EMPLOYEE_TYPES.rubber.rate;
   const rubberManualAdvanceTotal = rubberAdvances
-    .filter((advance) => getDayFromDateText(advance.advance_date) > rubberClosedThroughDay)
+    .filter(
+      (advance) =>
+        advance.employee_id === 'rubber-tapping-employee' &&
+        advance.advance_date > rubberClosedThroughDate &&
+        advance.advance_date <= monthEndKey,
+    )
     .reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
-  const rubberOpeningAdvanceTotal = rubberOpeningAdvances.reduce(
-    (sum, payment) => sum + Number(payment.carry_forward_amount || 0),
-    0,
-  );
+  const rubberOpeningAdvanceTotal = Number(latestRubberPayment?.carry_forward_amount || 0);
+  const openRubberAdvances = rubberAdvances
+    .filter(
+      (advance) =>
+        advance.employee_id === 'rubber-tapping-employee' &&
+        advance.advance_date > rubberClosedThroughDate &&
+        advance.advance_date <= monthEndKey,
+    )
+    .sort((a, b) => b.advance_date.localeCompare(a.advance_date));
   const rubberAdvanceTotal = rubberManualAdvanceTotal + rubberOpeningAdvanceTotal;
-  const rubberPaid = rubberPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const rubberPaid = visibleRubberPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
   const rubberBalance = Math.max(openRubberEarned - rubberAdvanceTotal, 0);
   const rubberExtraAdvance = Math.max(rubberAdvanceTotal - openRubberEarned, 0);
+  const rubberClosedThroughDay = rubberClosedThroughDate.startsWith(month) ? getDayFromDateText(rubberClosedThroughDate) : 0;
 
   return (
     <section className="panel employee-panel">
@@ -940,10 +948,14 @@ function EmployeePanel({
             (record) => record.employee_id === employee.id && record.work_day === day,
           );
           const sunday = employee.type === 'ration' && isSunday(month, day);
+          const recordDateKey = dayRecord ? getRecordDateKey(dayRecord) : '';
+          const settledRubberDay =
+            employee.type === 'rubber' &&
+            active &&
+            recordDateKey <= rubberSettledThroughDate;
           const label = employee.type === 'rubber'
-            ? day <= rubberClosedThroughDay ? 'Closed' : 'Tap'
+            ? settledRubberDay ? 'Closed' : 'Tap'
             : ATTENDANCE_STATUSES[dayRecord?.status]?.label;
-          const settledRubberDay = employee.type === 'rubber' && active && day <= rubberClosedThroughDay;
 
           return (
             <button
@@ -983,8 +995,10 @@ function EmployeePanel({
       {employee.type === 'rubber' && (
         <RubberAccount
           advances={rubberAdvances}
+          openAdvances={openRubberAdvances}
           advanceTotal={rubberAdvanceTotal}
           balance={rubberBalance}
+          closedThroughDate={rubberClosedThroughDate}
           closedThroughDay={rubberClosedThroughDay}
           earned={openRubberEarned}
           extraAdvance={rubberExtraAdvance}
@@ -994,7 +1008,7 @@ function EmployeePanel({
           onDeleteAdvance={onDeleteRubberAdvance}
           onDeletePayment={onDeleteRubberPayment}
           paid={rubberPaid}
-          payments={rubberPayments}
+          payments={visibleRubberPayments}
         />
       )}
     </section>
@@ -1120,6 +1134,7 @@ function ShopAdvances({
 
 function RubberAccount({
   advances,
+  openAdvances,
   advanceTotal,
   balance,
   closedThroughDay,
@@ -1215,10 +1230,10 @@ function RubberAccount({
       <div className="account-history">
         <h3>Advance amounts</h3>
         <div className="advance-list">
-          {advances.length === 0 ? (
-            <p className="status">No advance amount added for this month.</p>
+          {openAdvances.length === 0 ? (
+            <p className="status">No advance amount added for this open payment.</p>
           ) : (
-            advances.map((advance) => (
+            openAdvances.map((advance) => (
               <div className="advance-row" key={advance.id}>
                 <div>
                   <strong>Advance</strong>
