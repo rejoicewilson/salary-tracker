@@ -147,6 +147,7 @@ function readLocalData() {
       rationPayments: [],
       shopAdvances: [],
       shopSalaryPayments: [],
+      rubberTaps: [],
       rubberAdvances: [],
       rubberPayments: [],
     };
@@ -183,6 +184,13 @@ function readLocalData() {
         payment?.work_month &&
         Number.isFinite(Number(payment?.amount)),
     ) : [];
+    const rubberTaps = Array.isArray(parsed.rubberTaps) ? parsed.rubberTaps.filter(
+      (tap) =>
+        tap?.id &&
+        tap?.employee_id === 'rubber-tapping-employee' &&
+        tap?.tap_date &&
+        Number.isFinite(Number(tap?.count)),
+    ) : [];
     const rubberAdvances = Array.isArray(parsed.rubberAdvances) ? parsed.rubberAdvances.filter(
       (advance) =>
         advance?.id &&
@@ -200,13 +208,14 @@ function readLocalData() {
         Number.isFinite(Number(payment?.amount)),
     ) : [];
 
-    return { records, rationPayments, shopAdvances, shopSalaryPayments, rubberAdvances, rubberPayments };
+    return { records, rationPayments, shopAdvances, shopSalaryPayments, rubberTaps, rubberAdvances, rubberPayments };
   } catch {
     return {
       records: [],
       rationPayments: [],
       shopAdvances: [],
       shopSalaryPayments: [],
+      rubberTaps: [],
       rubberAdvances: [],
       rubberPayments: [],
     };
@@ -254,6 +263,7 @@ function App() {
   const [rationPayments, setRationPayments] = useState([]);
   const [shopAdvances, setShopAdvances] = useState([]);
   const [shopSalaryPayments, setShopSalaryPayments] = useState([]);
+  const [rubberTaps, setRubberTaps] = useState([]);
   const [rubberAdvances, setRubberAdvances] = useState([]);
   const [rubberPayments, setRubberPayments] = useState([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(EMPLOYEES[0].id);
@@ -271,6 +281,7 @@ function App() {
         setRationPayments(local.rationPayments);
         setShopAdvances(local.shopAdvances);
         setShopSalaryPayments(local.shopSalaryPayments);
+        setRubberTaps(local.rubberTaps);
         setRubberAdvances(local.rubberAdvances);
         setRubberPayments(local.rubberPayments);
         return;
@@ -282,6 +293,7 @@ function App() {
         { data: paymentRows, error: paymentError },
         { data: advanceRows, error: advanceError },
         { data: shopPaymentRows, error: shopPaymentError },
+        { data: rubberTapRows, error: rubberTapError },
         { data: rubberAdvanceRows, error: rubberAdvanceError },
         { data: rubberPaymentRows, error: rubberPaymentError },
       ] =
@@ -290,6 +302,7 @@ function App() {
           supabase.from('ration_weekly_payments').select('*'),
           supabase.from('shop_advances').select('*'),
           supabase.from('shop_salary_payments').select('*'),
+          supabase.from('rubber_taps').select('*'),
           supabase.from('rubber_advances').select('*'),
           supabase.from('rubber_payments').select('*'),
         ]);
@@ -301,6 +314,7 @@ function App() {
         setRationPayments(local.rationPayments);
         setShopAdvances(local.shopAdvances);
         setShopSalaryPayments(local.shopSalaryPayments);
+        setRubberTaps(local.rubberTaps);
         setRubberAdvances(local.rubberAdvances);
         setRubberPayments(local.rubberPayments);
         return;
@@ -310,6 +324,7 @@ function App() {
       setRationPayments(paymentRows || []);
       setShopAdvances(advanceError ? [] : advanceRows || []);
       setShopSalaryPayments(shopPaymentError ? [] : shopPaymentRows || []);
+      setRubberTaps(rubberTapError ? [] : rubberTapRows || []);
       setRubberAdvances(rubberAdvanceError ? [] : rubberAdvanceRows || []);
       setRubberPayments(rubberPaymentError ? [] : rubberPaymentRows || []);
     }
@@ -329,12 +344,13 @@ function App() {
           rationPayments,
           shopAdvances,
           shopSalaryPayments,
+          rubberTaps,
           rubberAdvances,
           rubberPayments,
         }),
       );
     }
-  }, [records, rationPayments, shopAdvances, shopSalaryPayments, rubberAdvances, rubberPayments]);
+  }, [records, rationPayments, shopAdvances, shopSalaryPayments, rubberTaps, rubberAdvances, rubberPayments]);
 
   const monthRecords = useMemo(
     () => records.filter((record) => record.work_month === month),
@@ -388,9 +404,9 @@ function App() {
 
   const monthRubberPayments = useMemo(
     () => rubberPayments
-      .filter((payment) => payment.employee_id === 'rubber-tapping-employee' && payment.work_month === month)
+      .filter((payment) => payment.employee_id === 'rubber-tapping-employee')
       .sort((a, b) => b.paid_date.localeCompare(a.paid_date)),
-    [month, rubberPayments],
+    [rubberPayments],
   );
 
   async function saveRationPayment(weekKey, amount) {
@@ -493,7 +509,7 @@ function App() {
     const advance = {
       id: createId(),
       employee_id: 'rubber-tapping-employee',
-      work_month: month,
+      work_month: getMonthValue(new Date()),
       advance_date: formatDateKey(new Date()),
       note: note.trim(),
       amount: advanceAmount,
@@ -503,6 +519,33 @@ function App() {
 
     if (isSupabaseConfigured) {
       await supabase.from('rubber_advances').insert(advance);
+    }
+  }
+
+  async function addRubberTap({ count, note }) {
+    const tapCount = Number(count) || 0;
+    if (tapCount <= 0) return;
+
+    const tap = {
+      id: createId(),
+      employee_id: 'rubber-tapping-employee',
+      tap_date: formatDateKey(new Date()),
+      count: tapCount,
+      note: note.trim(),
+    };
+
+    setRubberTaps((current) => [...current, tap]);
+
+    if (isSupabaseConfigured) {
+      await supabase.from('rubber_taps').insert(tap);
+    }
+  }
+
+  async function deleteRubberTap(id) {
+    setRubberTaps((current) => current.filter((tap) => tap.id !== id));
+
+    if (isSupabaseConfigured) {
+      await supabase.from('rubber_taps').delete().eq('id', id);
     }
   }
 
@@ -522,7 +565,7 @@ function App() {
     const payment = {
       id: createId(),
       employee_id: 'rubber-tapping-employee',
-      work_month: month,
+      work_month: getMonthValue(new Date()),
       paid_date: formatDateKey(new Date()),
       amount: paymentAmount,
       carry_forward_amount: nextCarry,
@@ -692,12 +735,15 @@ function App() {
           onDeleteShopAdvance={deleteShopAdvance}
           onSaveShopSalaryPayment={saveShopSalaryPayment}
           onAddRubberAdvance={addRubberAdvance}
+          onAddRubberTap={addRubberTap}
           onDeleteRubberAdvance={deleteRubberAdvance}
+          onDeleteRubberTap={deleteRubberTap}
           onAddRubberPayment={addRubberPayment}
           onDeleteRubberPayment={deleteRubberPayment}
           rationWeeklySummary={rationWeeklySummary}
           rubberAdvances={rubberAdvances}
           rubberPayments={rubberPayments}
+          rubberTaps={rubberTaps}
           visibleRubberPayments={monthRubberPayments}
           shopAdvances={monthShopAdvances}
           shopSalaryPayment={monthShopSalaryPayment}
@@ -844,13 +890,16 @@ function EmployeePanel({
   onDeleteShopAdvance,
   onSaveShopSalaryPayment,
   onAddRubberAdvance,
+  onAddRubberTap,
   onDeleteRubberAdvance,
+  onDeleteRubberTap,
   onAddRubberPayment,
   onDeleteRubberPayment,
   onToggle,
   rationWeeklySummary,
   rubberAdvances,
   rubberPayments,
+  rubberTaps,
   visibleRubberPayments,
   shopAdvances,
   shopSalaryPayment,
@@ -863,53 +912,41 @@ function EmployeePanel({
   const shopPaid = Number(shopSalaryPayment?.amount || 0);
   const shopNetSalary = Math.max(rule.rate - shopAdvanceTotal, 0);
   const shopBalance = Math.max(shopNetSalary - shopPaid, 0);
-  const monthEndKey = getMonthEndKey(month);
+  const todayKey = formatDateKey(new Date());
   const latestAnyRubberPayment = rubberPayments
     .filter((payment) => payment.employee_id === 'rubber-tapping-employee')
     .sort((a, b) => b.paid_date.localeCompare(a.paid_date))[0];
   const rubberSettledThroughDate = latestAnyRubberPayment?.paid_date || '';
-  const latestRubberPayment = rubberPayments
-    .filter(
-      (payment) =>
-        payment.employee_id === 'rubber-tapping-employee' &&
-        payment.paid_date <= monthEndKey,
-    )
-    .sort((a, b) => b.paid_date.localeCompare(a.paid_date))[0];
+  const latestRubberPayment = latestAnyRubberPayment;
   const rubberClosedThroughDate = latestRubberPayment?.paid_date || '';
-  const openRubberRecords = employee.type === 'rubber'
-    ? allRecords.filter((record) => {
-      const dateKey = getRecordDateKey(record);
-      return (
-        record.employee_id === employee.id &&
-        dateKey > rubberClosedThroughDate &&
-        dateKey <= monthEndKey
-      );
-    })
+  const openRubberTaps = employee.type === 'rubber'
+    ? rubberTaps
+      .filter(
+        (tap) =>
+          tap.employee_id === 'rubber-tapping-employee' &&
+          tap.tap_date > rubberClosedThroughDate &&
+          tap.tap_date <= todayKey,
+      )
+      .sort((a, b) => b.tap_date.localeCompare(a.tap_date))
     : [];
-  const openRubberCount = openRubberRecords.length;
+  const openRubberCount = openRubberTaps.reduce((sum, tap) => sum + Number(tap.count || 0), 0);
   const openRubberEarned = openRubberCount * EMPLOYEE_TYPES.rubber.rate;
-  const rubberManualAdvanceTotal = rubberAdvances
-    .filter(
-      (advance) =>
-        advance.employee_id === 'rubber-tapping-employee' &&
-        advance.advance_date > rubberClosedThroughDate &&
-        advance.advance_date <= monthEndKey,
-    )
-    .reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
-  const rubberOpeningAdvanceTotal = Number(latestRubberPayment?.carry_forward_amount || 0);
   const openRubberAdvances = rubberAdvances
     .filter(
       (advance) =>
         advance.employee_id === 'rubber-tapping-employee' &&
         advance.advance_date > rubberClosedThroughDate &&
-        advance.advance_date <= monthEndKey,
+        advance.advance_date <= todayKey,
     )
     .sort((a, b) => b.advance_date.localeCompare(a.advance_date));
+  const rubberManualAdvanceTotal = openRubberAdvances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
+  const rubberOpeningAdvanceTotal = Number(latestRubberPayment?.carry_forward_amount || 0);
   const rubberAdvanceTotal = rubberManualAdvanceTotal + rubberOpeningAdvanceTotal;
-  const rubberPaid = visibleRubberPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const rubberPaid = rubberPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
   const rubberBalance = Math.max(openRubberEarned - rubberAdvanceTotal, 0);
   const rubberExtraAdvance = Math.max(rubberAdvanceTotal - openRubberEarned, 0);
   const rubberClosedThroughDay = rubberClosedThroughDate.startsWith(month) ? getDayFromDateText(rubberClosedThroughDate) : 0;
+  const displaySalary = employee.type === 'rubber' ? openRubberEarned : summary.salary;
 
   return (
     <section className="panel employee-panel">
@@ -919,7 +956,7 @@ function EmployeePanel({
           <h2>{employee.name}</h2>
           <span>{rule.rateLabel} - {rule.detail}</span>
         </div>
-        <strong className="employee-salary">{formatMoney(summary.salary)}</strong>
+        <strong className="employee-salary">{formatMoney(displaySalary)}</strong>
       </div>
 
       <div className="salary-line">
@@ -933,6 +970,7 @@ function EmployeePanel({
         </strong>
       </div>
 
+      {employee.type !== 'rubber' && (
       <div className="calendar-grid">
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((dayName, index) => (
           <div className="weekday" key={`${dayName}-${index}`}>{dayName}</div>
@@ -971,6 +1009,7 @@ function EmployeePanel({
           );
         })}
       </div>
+      )}
 
       {employee.type === 'ration' && (
         <RationWeeklyPayments
@@ -995,6 +1034,7 @@ function EmployeePanel({
       {employee.type === 'rubber' && (
         <RubberAccount
           advances={rubberAdvances}
+          taps={openRubberTaps}
           openAdvances={openRubberAdvances}
           advanceTotal={rubberAdvanceTotal}
           balance={rubberBalance}
@@ -1004,8 +1044,10 @@ function EmployeePanel({
           extraAdvance={rubberExtraAdvance}
           openingAdvanceTotal={rubberOpeningAdvanceTotal}
           onAddAdvance={onAddRubberAdvance}
+          onAddTap={onAddRubberTap}
           onAddPayment={onAddRubberPayment}
           onDeleteAdvance={onDeleteRubberAdvance}
+          onDeleteTap={onDeleteRubberTap}
           onDeletePayment={onDeleteRubberPayment}
           paid={rubberPaid}
           payments={visibleRubberPayments}
@@ -1134,6 +1176,7 @@ function ShopAdvances({
 
 function RubberAccount({
   advances,
+  taps,
   openAdvances,
   advanceTotal,
   balance,
@@ -1142,20 +1185,31 @@ function RubberAccount({
   extraAdvance,
   openingAdvanceTotal,
   onAddAdvance,
+  onAddTap,
   onAddPayment,
   onDeleteAdvance,
+  onDeleteTap,
   onDeletePayment,
   paid,
   payments,
 }) {
   const [advanceAmount, setAdvanceAmount] = useState('');
   const [advanceNote, setAdvanceNote] = useState('');
+  const [tapCount, setTapCount] = useState('1');
+  const [tapNote, setTapNote] = useState('');
 
   function submitAdvance(event) {
     event.preventDefault();
     onAddAdvance({ amount: advanceAmount, note: advanceNote });
     setAdvanceAmount('');
     setAdvanceNote('');
+  }
+
+  function submitTap(event) {
+    event.preventDefault();
+    onAddTap({ count: tapCount, note: tapNote });
+    setTapCount('1');
+    setTapNote('');
   }
 
   return (
@@ -1207,6 +1261,26 @@ function RubberAccount({
         </div>
       </div>
 
+      <form className="advance-form" onSubmit={submitTap}>
+        <div className="advance-entry">
+          <input
+            min="1"
+            type="number"
+            inputMode="numeric"
+            placeholder="Tap count"
+            value={tapCount}
+            onChange={(event) => setTapCount(event.target.value)}
+          />
+          <button type="submit">Add tap</button>
+        </div>
+        <input
+          type="text"
+          placeholder="Tap note optional"
+          value={tapNote}
+          onChange={(event) => setTapNote(event.target.value)}
+        />
+      </form>
+
       <form className="advance-form" onSubmit={submitAdvance}>
         <div className="advance-entry">
           <input
@@ -1226,6 +1300,36 @@ function RubberAccount({
           onChange={(event) => setAdvanceNote(event.target.value)}
         />
       </form>
+
+      <div className="account-history">
+        <h3>Open taps</h3>
+        <div className="advance-list">
+          {taps.length === 0 ? (
+            <p className="status">No taps added for this open payment.</p>
+          ) : (
+            taps.map((tap) => (
+              <div className="advance-row" key={tap.id}>
+                <div>
+                  <strong>{tap.count} taps</strong>
+                  <span>
+                    {new Date(`${tap.tap_date}T00:00:00`).toLocaleDateString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                    })}
+                    {tap.note ? ` - ${tap.note}` : ''}
+                  </span>
+                </div>
+                <div>
+                  <strong>{formatMoney(Number(tap.count || 0) * EMPLOYEE_TYPES.rubber.rate)}</strong>
+                  <button type="button" onClick={() => onDeleteTap(tap.id)}>
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
 
       <div className="account-history">
         <h3>Advance amounts</h3>

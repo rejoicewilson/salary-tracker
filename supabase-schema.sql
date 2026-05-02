@@ -59,6 +59,15 @@ create table if not exists rubber_advances (
   created_at timestamptz not null default now()
 );
 
+create table if not exists rubber_taps (
+  id text primary key,
+  employee_id text not null references employees(id) on delete cascade,
+  tap_date date not null,
+  count integer not null default 1 check (count > 0),
+  note text not null default '',
+  created_at timestamptz not null default now()
+);
+
 create table if not exists rubber_payments (
   id text primary key,
   employee_id text not null references employees(id) on delete cascade,
@@ -77,6 +86,7 @@ alter table attendance_records enable row level security;
 alter table ration_weekly_payments enable row level security;
 alter table shop_advances enable row level security;
 alter table shop_salary_payments enable row level security;
+alter table rubber_taps enable row level security;
 alter table rubber_advances enable row level security;
 alter table rubber_payments enable row level security;
 
@@ -118,6 +128,13 @@ with check (true);
 drop policy if exists "Allow public rubber advance access" on rubber_advances;
 create policy "Allow public rubber advance access"
 on rubber_advances
+for all
+using (true)
+with check (true);
+
+drop policy if exists "Allow public rubber tap access" on rubber_taps;
+create policy "Allow public rubber tap access"
+on rubber_taps
 for all
 using (true)
 with check (true);

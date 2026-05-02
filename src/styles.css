@@ -489,7 +489,7 @@ input {
 
 .advance-entry {
   display: grid;
-  grid-template-columns: 1fr 84px;
+  grid-template-columns: 1fr 104px;
   gap: 8px;
 }
 
