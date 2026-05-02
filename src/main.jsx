@@ -430,8 +430,8 @@ function App() {
                 onClick={() => setSelectedEmployeeId(employee.id)}
               >
                 <span>
-                  <strong>{employee.name}</strong>
-                  <small>{rule.label}</small>
+                  <strong>{rule.label}</strong>
+                  <small>{employee.name.replace(' Employee', '')}</small>
                 </span>
                 {active && <Check size={18} />}
               </button>

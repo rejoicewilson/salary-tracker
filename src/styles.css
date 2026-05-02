@@ -189,27 +189,28 @@ input {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 248, 0.98)),
     #ffffff;
+  padding: 12px;
 }
 
 .employee-tabs {
   display: grid;
-  gap: 8px;
-  margin-top: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 9px;
 }
 
 .employee-tab {
-  min-height: 58px;
+  min-height: 66px;
   width: 100%;
-  display: flex;
+  display: grid;
+  grid-template-rows: 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
   border: 1px solid #d7e2da;
   border-radius: 12px;
   background: #ffffff;
   color: #17211b;
-  padding: 10px 12px;
-  text-align: left;
+  padding: 9px 7px;
+  text-align: center;
 }
 
 .employee-tab span,
@@ -219,20 +220,27 @@ input {
 }
 
 .employee-tab strong {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.2;
 }
 
 .employee-tab small {
-  margin-top: 4px;
+  margin-top: 3px;
   color: #65736b;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .employee-tab svg {
-  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 5px auto 0;
+  padding: 3px;
+  border-radius: 999px;
+  background: #16613a;
+  color: white;
 }
 
 .employee-tab.active {
