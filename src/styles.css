@@ -348,7 +348,8 @@ input {
   padding-top: 12px;
 }
 
-.shop-advances {
+.shop-advances,
+.rubber-account {
   margin-top: 14px;
   border-top: 1px solid #e1e9e3;
   padding-top: 12px;
@@ -517,6 +518,19 @@ input {
   font-size: 12px;
   font-weight: 900;
   padding: 5px 9px;
+}
+
+.account-history {
+  margin-top: 12px;
+}
+
+.account-history h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.rubber-summary {
+  margin-bottom: 10px;
 }
 
 .weekly-head {

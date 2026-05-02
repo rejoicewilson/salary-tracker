@@ -128,7 +128,16 @@ function getWeekStartText(weekKey) {
 
 function readLocalData() {
   const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) return { records: [], rationPayments: [], shopAdvances: [], shopSalaryPayments: [] };
+  if (!saved) {
+    return {
+      records: [],
+      rationPayments: [],
+      shopAdvances: [],
+      shopSalaryPayments: [],
+      rubberAdvances: [],
+      rubberPayments: [],
+    };
+  }
 
   try {
     const parsed = JSON.parse(saved);
@@ -161,10 +170,33 @@ function readLocalData() {
         payment?.work_month &&
         Number.isFinite(Number(payment?.amount)),
     ) : [];
+    const rubberAdvances = Array.isArray(parsed.rubberAdvances) ? parsed.rubberAdvances.filter(
+      (advance) =>
+        advance?.id &&
+        advance?.employee_id === 'rubber-tapping-employee' &&
+        advance?.work_month &&
+        advance?.advance_date &&
+        Number.isFinite(Number(advance?.amount)),
+    ) : [];
+    const rubberPayments = Array.isArray(parsed.rubberPayments) ? parsed.rubberPayments.filter(
+      (payment) =>
+        payment?.id &&
+        payment?.employee_id === 'rubber-tapping-employee' &&
+        payment?.work_month &&
+        payment?.paid_date &&
+        Number.isFinite(Number(payment?.amount)),
+    ) : [];
 
-    return { records, rationPayments, shopAdvances, shopSalaryPayments };
+    return { records, rationPayments, shopAdvances, shopSalaryPayments, rubberAdvances, rubberPayments };
   } catch {
-    return { records: [], rationPayments: [], shopAdvances: [], shopSalaryPayments: [] };
+    return {
+      records: [],
+      rationPayments: [],
+      shopAdvances: [],
+      shopSalaryPayments: [],
+      rubberAdvances: [],
+      rubberPayments: [],
+    };
   }
 }
 
@@ -209,6 +241,8 @@ function App() {
   const [rationPayments, setRationPayments] = useState([]);
   const [shopAdvances, setShopAdvances] = useState([]);
   const [shopSalaryPayments, setShopSalaryPayments] = useState([]);
+  const [rubberAdvances, setRubberAdvances] = useState([]);
+  const [rubberPayments, setRubberPayments] = useState([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(EMPLOYEES[0].id);
   const [attendancePicker, setAttendancePicker] = useState(null);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
@@ -224,6 +258,8 @@ function App() {
         setRationPayments(local.rationPayments);
         setShopAdvances(local.shopAdvances);
         setShopSalaryPayments(local.shopSalaryPayments);
+        setRubberAdvances(local.rubberAdvances);
+        setRubberPayments(local.rubberPayments);
         return;
       }
 
@@ -233,12 +269,16 @@ function App() {
         { data: paymentRows, error: paymentError },
         { data: advanceRows, error: advanceError },
         { data: shopPaymentRows, error: shopPaymentError },
+        { data: rubberAdvanceRows, error: rubberAdvanceError },
+        { data: rubberPaymentRows, error: rubberPaymentError },
       ] =
         await Promise.all([
           supabase.from('attendance_records').select('*'),
           supabase.from('ration_weekly_payments').select('*'),
           supabase.from('shop_advances').select('*'),
           supabase.from('shop_salary_payments').select('*'),
+          supabase.from('rubber_advances').select('*'),
+          supabase.from('rubber_payments').select('*'),
         ]);
       if (!alive) return;
 
@@ -248,6 +288,8 @@ function App() {
         setRationPayments(local.rationPayments);
         setShopAdvances(local.shopAdvances);
         setShopSalaryPayments(local.shopSalaryPayments);
+        setRubberAdvances(local.rubberAdvances);
+        setRubberPayments(local.rubberPayments);
         return;
       }
 
@@ -255,6 +297,8 @@ function App() {
       setRationPayments(paymentRows || []);
       setShopAdvances(advanceError ? [] : advanceRows || []);
       setShopSalaryPayments(shopPaymentError ? [] : shopPaymentRows || []);
+      setRubberAdvances(rubberAdvanceError ? [] : rubberAdvanceRows || []);
+      setRubberPayments(rubberPaymentError ? [] : rubberPaymentRows || []);
     }
 
     loadData();
@@ -267,10 +311,17 @@ function App() {
     if (!isSupabaseConfigured) {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ records, rationPayments, shopAdvances, shopSalaryPayments }),
+        JSON.stringify({
+          records,
+          rationPayments,
+          shopAdvances,
+          shopSalaryPayments,
+          rubberAdvances,
+          rubberPayments,
+        }),
       );
     }
-  }, [records, rationPayments, shopAdvances, shopSalaryPayments]);
+  }, [records, rationPayments, shopAdvances, shopSalaryPayments, rubberAdvances, rubberPayments]);
 
   const monthRecords = useMemo(
     () => records.filter((record) => record.work_month === month),
@@ -320,6 +371,20 @@ function App() {
       (payment) => payment.employee_id === 'shop-employee' && payment.work_month === month,
     ),
     [month, shopSalaryPayments],
+  );
+
+  const monthRubberAdvances = useMemo(
+    () => rubberAdvances
+      .filter((advance) => advance.employee_id === 'rubber-tapping-employee' && advance.work_month === month)
+      .sort((a, b) => b.advance_date.localeCompare(a.advance_date)),
+    [month, rubberAdvances],
+  );
+
+  const monthRubberPayments = useMemo(
+    () => rubberPayments
+      .filter((payment) => payment.employee_id === 'rubber-tapping-employee' && payment.work_month === month)
+      .sort((a, b) => b.paid_date.localeCompare(a.paid_date)),
+    [month, rubberPayments],
   );
 
   async function saveRationPayment(weekKey, amount) {
@@ -412,6 +477,61 @@ function App() {
 
     if (isSupabaseConfigured) {
       await supabase.from('shop_salary_payments').insert(payment);
+    }
+  }
+
+  async function addRubberAdvance({ amount, note }) {
+    const advanceAmount = Number(amount) || 0;
+    if (advanceAmount <= 0) return;
+
+    const advance = {
+      id: createId(),
+      employee_id: 'rubber-tapping-employee',
+      work_month: month,
+      advance_date: formatDateKey(new Date()),
+      note: note.trim(),
+      amount: advanceAmount,
+    };
+
+    setRubberAdvances((current) => [...current, advance]);
+
+    if (isSupabaseConfigured) {
+      await supabase.from('rubber_advances').insert(advance);
+    }
+  }
+
+  async function deleteRubberAdvance(id) {
+    setRubberAdvances((current) => current.filter((advance) => advance.id !== id));
+
+    if (isSupabaseConfigured) {
+      await supabase.from('rubber_advances').delete().eq('id', id);
+    }
+  }
+
+  async function addRubberPayment(amount) {
+    const paymentAmount = Number(amount) || 0;
+    if (paymentAmount <= 0) return;
+
+    const payment = {
+      id: createId(),
+      employee_id: 'rubber-tapping-employee',
+      work_month: month,
+      paid_date: formatDateKey(new Date()),
+      amount: paymentAmount,
+    };
+
+    setRubberPayments((current) => [...current, payment]);
+
+    if (isSupabaseConfigured) {
+      await supabase.from('rubber_payments').insert(payment);
+    }
+  }
+
+  async function deleteRubberPayment(id) {
+    setRubberPayments((current) => current.filter((payment) => payment.id !== id));
+
+    if (isSupabaseConfigured) {
+      await supabase.from('rubber_payments').delete().eq('id', id);
     }
   }
 
@@ -562,7 +682,13 @@ function App() {
           onAddShopAdvance={addShopAdvance}
           onDeleteShopAdvance={deleteShopAdvance}
           onSaveShopSalaryPayment={saveShopSalaryPayment}
+          onAddRubberAdvance={addRubberAdvance}
+          onDeleteRubberAdvance={deleteRubberAdvance}
+          onAddRubberPayment={addRubberPayment}
+          onDeleteRubberPayment={deleteRubberPayment}
           rationWeeklySummary={rationWeeklySummary}
+          rubberAdvances={monthRubberAdvances}
+          rubberPayments={monthRubberPayments}
           shopAdvances={monthShopAdvances}
           shopSalaryPayment={monthShopSalaryPayment}
           summary={summaries.byEmployee.get(selectedEmployee.id) || { workCount: 0, salary: 0 }}
@@ -706,8 +832,14 @@ function EmployeePanel({
   onAddShopAdvance,
   onDeleteShopAdvance,
   onSaveShopSalaryPayment,
+  onAddRubberAdvance,
+  onDeleteRubberAdvance,
+  onAddRubberPayment,
+  onDeleteRubberPayment,
   onToggle,
   rationWeeklySummary,
+  rubberAdvances,
+  rubberPayments,
   shopAdvances,
   shopSalaryPayment,
   summary,
@@ -719,6 +851,9 @@ function EmployeePanel({
   const shopPaid = Number(shopSalaryPayment?.amount || 0);
   const shopNetSalary = Math.max(rule.rate - shopAdvanceTotal, 0);
   const shopBalance = Math.max(shopNetSalary - shopPaid, 0);
+  const rubberAdvanceTotal = rubberAdvances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
+  const rubberPaid = rubberPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const rubberBalance = Math.max(summary.salary - rubberAdvanceTotal - rubberPaid, 0);
 
   return (
     <section className="panel employee-panel">
@@ -791,6 +926,21 @@ function EmployeePanel({
           onSavePayment={onSaveShopSalaryPayment}
           paid={shopPaid}
           total={shopAdvanceTotal}
+        />
+      )}
+
+      {employee.type === 'rubber' && (
+        <RubberAccount
+          advances={rubberAdvances}
+          advanceTotal={rubberAdvanceTotal}
+          balance={rubberBalance}
+          earned={summary.salary}
+          onAddAdvance={onAddRubberAdvance}
+          onAddPayment={onAddRubberPayment}
+          onDeleteAdvance={onDeleteRubberAdvance}
+          onDeletePayment={onDeleteRubberPayment}
+          paid={rubberPaid}
+          payments={rubberPayments}
         />
       )}
     </section>
@@ -909,6 +1059,149 @@ function ShopAdvances({
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+function RubberAccount({
+  advances,
+  advanceTotal,
+  balance,
+  earned,
+  onAddAdvance,
+  onAddPayment,
+  onDeleteAdvance,
+  onDeletePayment,
+  paid,
+  payments,
+}) {
+  const [advanceAmount, setAdvanceAmount] = useState('');
+  const [advanceNote, setAdvanceNote] = useState('');
+
+  function submitAdvance(event) {
+    event.preventDefault();
+    onAddAdvance({ amount: advanceAmount, note: advanceNote });
+    setAdvanceAmount('');
+    setAdvanceNote('');
+  }
+
+  return (
+    <div className="rubber-account">
+      <div className="advance-summary rubber-summary">
+        <div>
+          <span>Earned</span>
+          <strong>{formatMoney(earned)}</strong>
+        </div>
+        <div>
+          <span>Pending</span>
+          <strong>{formatMoney(balance)}</strong>
+        </div>
+      </div>
+
+      <div className={`shop-payment-card ${balance === 0 ? 'paid' : 'pending'}`}>
+        <div className="shop-payment-top">
+          <div>
+            <span>Rubber payment</span>
+            <strong>{formatMoney(balance)} pending</strong>
+            <small>{formatMoney(paid)} paid, {formatMoney(advanceTotal)} advance</small>
+          </div>
+          <span className={`payment-seal ${balance === 0 ? 'paid' : 'not-paid'}`}>
+            <span>{balance === 0 ? 'Paid' : 'Not paid'}</span>
+          </span>
+        </div>
+        <div className="payment-actions shop-payment-actions">
+          <button type="button" className="mark-paid" onClick={() => onAddPayment(balance)}>
+            Close payment
+          </button>
+          <button
+            type="button"
+            className="clear-paid"
+            disabled={payments.length === 0}
+            onClick={() => payments[0] && onDeletePayment(payments[0].id)}
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <form className="advance-form" onSubmit={submitAdvance}>
+        <div className="advance-entry">
+          <input
+            min="1"
+            type="number"
+            inputMode="numeric"
+            placeholder="Advance amount"
+            value={advanceAmount}
+            onChange={(event) => setAdvanceAmount(event.target.value)}
+          />
+          <button type="submit">Add</button>
+        </div>
+        <input
+          type="text"
+          placeholder="Note optional"
+          value={advanceNote}
+          onChange={(event) => setAdvanceNote(event.target.value)}
+        />
+      </form>
+
+      <div className="account-history">
+        <h3>Advance amounts</h3>
+        <div className="advance-list">
+          {advances.length === 0 ? (
+            <p className="status">No advance amount added for this month.</p>
+          ) : (
+            advances.map((advance) => (
+              <div className="advance-row" key={advance.id}>
+                <div>
+                  <strong>Advance</strong>
+                  <span>
+                    {new Date(`${advance.advance_date}T00:00:00`).toLocaleDateString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                    })}
+                    {advance.note ? ` - ${advance.note}` : ''}
+                  </span>
+                </div>
+                <div>
+                  <strong>{formatMoney(Number(advance.amount || 0))}</strong>
+                  <button type="button" onClick={() => onDeleteAdvance(advance.id)}>
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="account-history">
+        <h3>Closed payments</h3>
+        <div className="advance-list">
+          {payments.length === 0 ? (
+            <p className="status">No rubber payment closed for this month.</p>
+          ) : (
+            payments.map((payment) => (
+              <div className="advance-row" key={payment.id}>
+                <div>
+                  <strong>Payment closed</strong>
+                  <span>
+                    {new Date(`${payment.paid_date}T00:00:00`).toLocaleDateString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                    })}
+                  </span>
+                </div>
+                <div>
+                  <strong>{formatMoney(Number(payment.amount || 0))}</strong>
+                  <button type="button" onClick={() => onDeletePayment(payment.id)}>
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

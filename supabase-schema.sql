@@ -49,11 +49,32 @@ create table if not exists shop_salary_payments (
   unique (employee_id, work_month)
 );
 
+create table if not exists rubber_advances (
+  id text primary key,
+  employee_id text not null references employees(id) on delete cascade,
+  work_month text not null,
+  advance_date date not null,
+  note text not null default '',
+  amount numeric not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists rubber_payments (
+  id text primary key,
+  employee_id text not null references employees(id) on delete cascade,
+  work_month text not null,
+  paid_date date not null,
+  amount numeric not null default 0,
+  created_at timestamptz not null default now()
+);
+
 alter table employees enable row level security;
 alter table attendance_records enable row level security;
 alter table ration_weekly_payments enable row level security;
 alter table shop_advances enable row level security;
 alter table shop_salary_payments enable row level security;
+alter table rubber_advances enable row level security;
+alter table rubber_payments enable row level security;
 
 drop policy if exists "Allow public employee access" on employees;
 create policy "Allow public employee access"
@@ -86,6 +107,20 @@ with check (true);
 drop policy if exists "Allow public shop salary payment access" on shop_salary_payments;
 create policy "Allow public shop salary payment access"
 on shop_salary_payments
+for all
+using (true)
+with check (true);
+
+drop policy if exists "Allow public rubber advance access" on rubber_advances;
+create policy "Allow public rubber advance access"
+on rubber_advances
+for all
+using (true)
+with check (true);
+
+drop policy if exists "Allow public rubber payment access" on rubber_payments;
+create policy "Allow public rubber payment access"
+on rubber_payments
 for all
 using (true)
 with check (true);
