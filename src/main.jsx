@@ -157,6 +157,7 @@ function getRubberTallyRows(taps, advances, openingAmount = 0) {
       rate: 0,
       advance: Number(openingAmount || 0),
       amount: 0,
+      note: 'Opening balance',
     }]
     : [];
   const tapRows = taps.map((tap) => ({
@@ -168,6 +169,7 @@ function getRubberTallyRows(taps, advances, openingAmount = 0) {
     rate: EMPLOYEE_TYPES.rubber.rate,
     advance: 0,
     amount: Number(tap.count || 0) * EMPLOYEE_TYPES.rubber.rate,
+    note: tap.note || '',
   }));
   const advanceRows = advances.map((advance) => ({
     id: `advance-${advance.id}`,
@@ -178,6 +180,7 @@ function getRubberTallyRows(taps, advances, openingAmount = 0) {
     rate: 0,
     advance: Number(advance.amount || 0),
     amount: 0,
+    note: advance.note || '',
   }));
 
   return [...openingRow, ...tapRows, ...advanceRows].sort((a, b) => {
@@ -1291,21 +1294,25 @@ function RubberAccount({
   payments,
 }) {
   const [advanceAmount, setAdvanceAmount] = useState('');
+  const [advanceNote, setAdvanceNote] = useState('');
   const [tapCount, setTapCount] = useState('1');
+  const [tapNote, setTapNote] = useState('');
   const [openPaymentId, setOpenPaymentId] = useState(null);
   const openTallyRows = getRubberTallyRows(taps, openAdvances, openingAdvanceTotal);
   const openTapCount = taps.reduce((sum, tap) => sum + Number(tap.count || 0), 0);
 
   function submitAdvance(event) {
     event.preventDefault();
-    onAddAdvance({ amount: advanceAmount, note: '' });
+    onAddAdvance({ amount: advanceAmount, note: advanceNote });
     setAdvanceAmount('');
+    setAdvanceNote('');
   }
 
   function submitTap(event) {
     event.preventDefault();
-    onAddTap({ count: tapCount, note: '' });
+    onAddTap({ count: tapCount, note: tapNote });
     setTapCount('1');
+    setTapNote('');
   }
 
   return (
@@ -1331,6 +1338,13 @@ function RubberAccount({
                   onChange={(event) => setTapCount(event.target.value)}
                 />
               </label>
+              <input
+                className="rubber-note-input"
+                type="text"
+                placeholder="Note optional"
+                value={tapNote}
+                onChange={(event) => setTapNote(event.target.value)}
+              />
               <button type="submit">
                 Add tap
               </button>
@@ -1347,6 +1361,13 @@ function RubberAccount({
                   onChange={(event) => setAdvanceAmount(event.target.value)}
                 />
               </label>
+              <input
+                className="rubber-note-input"
+                type="text"
+                placeholder="Note optional"
+                value={advanceNote}
+                onChange={(event) => setAdvanceNote(event.target.value)}
+              />
               <button type="submit">
                 Add advance
               </button>
@@ -1492,6 +1513,7 @@ function RubberTallyTable({
       <thead>
         <tr>
           <th>Date</th>
+          <th>Note</th>
           <th>Tap</th>
           <th>Advance</th>
           <th>Amount</th>
@@ -1501,7 +1523,7 @@ function RubberTallyTable({
       <tbody>
         {rows.length === 0 ? (
           <tr>
-            <td colSpan={onDeleteTap || onDeleteAdvance ? 5 : 4}>No entries found.</td>
+            <td colSpan={onDeleteTap || onDeleteAdvance ? 6 : 5}>No entries found.</td>
           </tr>
         ) : (
           rows.map((row) => {
@@ -1522,6 +1544,7 @@ function RubberTallyTable({
                       month: 'short',
                     })}
                 </td>
+                <td className="tally-note-cell">{row.note || '-'}</td>
                 <td>{row.tapCount || '-'}</td>
                 <td>{row.advance ? formatMoney(row.advance) : '-'}</td>
                 <td>{row.amount ? formatMoney(row.amount) : '-'}</td>
@@ -1543,13 +1566,14 @@ function RubberTallyTable({
           <>
             <tr className="tally-total-row">
               <td>Total</td>
+              <td>-</td>
               <td>{totals.taps}</td>
               <td>{formatMoney(totals.advance)}</td>
               <td>{formatMoney(totals.amount)}</td>
               {(onDeleteTap || onDeleteAdvance) && <td></td>}
             </tr>
             <tr className="tally-balance-row">
-              <td colSpan={onDeleteTap || onDeleteAdvance ? 5 : 4}>
+              <td colSpan={onDeleteTap || onDeleteAdvance ? 6 : 5}>
                 {totals.label}: {formatMoney(totals.pending)}
               </td>
             </tr>

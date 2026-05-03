@@ -706,6 +706,12 @@ input {
   font-weight: 900;
 }
 
+.rubber-action-card .rubber-note-input {
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .rubber-action-card button {
   display: inline-flex;
   align-items: center;
@@ -725,6 +731,15 @@ input {
 
 .advance-action button {
   background: #16613a;
+}
+
+.tally-note-cell {
+  max-width: 92px;
+  color: #405348;
+  font-weight: 700;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
 }
 
 .tally-total-row td {
