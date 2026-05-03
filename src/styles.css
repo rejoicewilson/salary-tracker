@@ -669,26 +669,72 @@ input {
 
 .rubber-quick-actions {
   display: grid;
-  gap: 8px;
-  margin-bottom: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-.rubber-quick-row {
+.rubber-action-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 112px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #d9e6dd;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbf8 100%);
+  box-shadow: 0 8px 20px rgba(32, 71, 48, 0.06);
 }
 
-.rubber-quick-row input {
+.rubber-action-card label {
+  display: grid;
+  gap: 5px;
+}
+
+.rubber-action-card label span {
+  color: #5d6d63;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.rubber-action-card input {
+  min-height: 42px;
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.rubber-action-card button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-height: 40px;
-}
-
-.rubber-quick-row button {
   border: 0;
   border-radius: 10px;
   background: #16613a;
   color: #ffffff;
   font-weight: 900;
+}
+
+.rubber-action-card button span {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  line-height: 1;
+}
+
+.advance-action {
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf0 100%);
+}
+
+.advance-action button {
+  background: #6c4a10;
 }
 
 .tally-total-row td {

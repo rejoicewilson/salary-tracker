@@ -1319,27 +1319,39 @@ function RubberAccount({
         </div>
         <div className="tally-table-wrap open-tally">
           <div className="rubber-quick-actions">
-            <form className="rubber-quick-row" onSubmit={submitTap}>
-              <input
-                min="1"
-                type="number"
-                inputMode="numeric"
-                placeholder="Tap count"
-                value={tapCount}
-                onChange={(event) => setTapCount(event.target.value)}
-              />
-              <button type="submit">Add tap</button>
+            <form className="rubber-action-card tap-action" onSubmit={submitTap}>
+              <label>
+                <span>Tap count</span>
+                <input
+                  min="1"
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="1"
+                  value={tapCount}
+                  onChange={(event) => setTapCount(event.target.value)}
+                />
+              </label>
+              <button type="submit">
+                <span>+</span>
+                Add tap
+              </button>
             </form>
-            <form className="rubber-quick-row" onSubmit={submitAdvance}>
-              <input
-                min="1"
-                type="number"
-                inputMode="numeric"
-                placeholder="Advance amount"
-                value={advanceAmount}
-                onChange={(event) => setAdvanceAmount(event.target.value)}
-              />
-              <button type="submit">Add advance</button>
+            <form className="rubber-action-card advance-action" onSubmit={submitAdvance}>
+              <label>
+                <span>Advance amount</span>
+                <input
+                  min="1"
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="Rs 0"
+                  value={advanceAmount}
+                  onChange={(event) => setAdvanceAmount(event.target.value)}
+                />
+              </label>
+              <button type="submit">
+                <span>+</span>
+                Add advance
+              </button>
             </form>
           </div>
           <RubberTallyTable
