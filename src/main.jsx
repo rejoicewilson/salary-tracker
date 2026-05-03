@@ -1297,9 +1297,22 @@ function RubberAccount({
   const [advanceNote, setAdvanceNote] = useState('');
   const [tapCount, setTapCount] = useState('1');
   const [tapNote, setTapNote] = useState('');
+  const [closedPaymentPage, setClosedPaymentPage] = useState(0);
   const [openPaymentId, setOpenPaymentId] = useState(null);
   const openTallyRows = getRubberTallyRows(taps, openAdvances, openingAdvanceTotal);
   const openTapCount = taps.reduce((sum, tap) => sum + Number(tap.count || 0), 0);
+  const closedPaymentPageSize = 3;
+  const closedPaymentTotalPages = Math.ceil(payments.length / closedPaymentPageSize);
+  const closedPaymentPageIndex = Math.min(closedPaymentPage, Math.max(closedPaymentTotalPages - 1, 0));
+  const visibleClosedPayments = payments.slice(
+    closedPaymentPageIndex * closedPaymentPageSize,
+    closedPaymentPageIndex * closedPaymentPageSize + closedPaymentPageSize,
+  );
+
+  useEffect(() => {
+    setClosedPaymentPage(0);
+    setOpenPaymentId(null);
+  }, [payments.length]);
 
   function submitAdvance(event) {
     event.preventDefault();
@@ -1409,12 +1422,17 @@ function RubberAccount({
       </div>
 
       <div className="account-history">
-        <h3>Closed payments</h3>
+        <div className="weekly-head">
+          <h3>Closed payments</h3>
+          {closedPaymentTotalPages > 1 && (
+            <span>Page {closedPaymentPageIndex + 1} / {closedPaymentTotalPages}</span>
+          )}
+        </div>
         <div className="advance-list">
           {payments.length === 0 ? (
             <p className="status">No rubber payment closed for this month.</p>
           ) : (
-            payments.map((payment) => {
+            visibleClosedPayments.map((payment) => {
               const paymentClosedAt = getRubberPaymentTime(payment);
               const previousPayment = payments
                 .filter((item) => item.id !== payment.id && getRubberPaymentTime(item) < paymentClosedAt)
@@ -1495,6 +1513,30 @@ function RubberAccount({
             })
           )}
         </div>
+        {closedPaymentTotalPages > 1 && (
+          <div className="pager rubber-payment-pager">
+            <button
+              type="button"
+              disabled={closedPaymentPageIndex === 0}
+              onClick={() => {
+                setOpenPaymentId(null);
+                setClosedPaymentPage((current) => Math.max(current - 1, 0));
+              }}
+            >
+              Newer
+            </button>
+            <button
+              type="button"
+              disabled={closedPaymentPageIndex >= closedPaymentTotalPages - 1}
+              onClick={() => {
+                setOpenPaymentId(null);
+                setClosedPaymentPage((current) => Math.min(current + 1, closedPaymentTotalPages - 1));
+              }}
+            >
+              Older
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
