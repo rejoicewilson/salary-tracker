@@ -1389,6 +1389,8 @@ function RubberAccount({
               const periodTapCount = periodTaps.reduce((sum, tap) => sum + Number(tap.count || 0), 0);
               const periodEarned = periodTapCount * EMPLOYEE_TYPES.rubber.rate;
               const periodAdvanceTotal = periodAdvances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
+              const periodCarryForward = Number(payment.carry_forward_amount || 0);
+              const periodPaidAmount = Number(payment.amount || 0);
               const periodRows = getRubberTallyRows(periodTaps, periodAdvances);
               const expanded = openPaymentId === payment.id;
 
@@ -1439,7 +1441,16 @@ function RubberAccount({
                       <span>Earned: {formatMoney(periodEarned)}</span>
                       <span>Advance: {formatMoney(periodAdvanceTotal)}</span>
                     </div>
-                    <RubberTallyTable rows={periodRows} />
+                    <RubberTallyTable
+                      rows={periodRows}
+                      totals={{
+                        advance: periodAdvanceTotal,
+                        amount: periodEarned,
+                        label: periodCarryForward > 0 ? 'Opening next payment' : 'Paid',
+                        pending: periodCarryForward > 0 ? periodCarryForward : periodPaidAmount,
+                        taps: periodTapCount,
+                      }}
+                    />
                   </div>
                 )}
               </div>
