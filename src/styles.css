@@ -661,6 +661,12 @@ input {
   background: #fffaf0;
 }
 
+.opening-tally-row td {
+  background: #edf7f1;
+  color: #0f4f2f;
+  font-weight: 800;
+}
+
 .rubber-quick-actions {
   display: grid;
   gap: 8px;

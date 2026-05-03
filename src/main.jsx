@@ -146,7 +146,19 @@ function getRubberPaymentPeriodAdvances(payment, payments, advances) {
     .sort((a, b) => getRubberAdvanceTime(a).localeCompare(getRubberAdvanceTime(b)));
 }
 
-function getRubberTallyRows(taps, advances) {
+function getRubberTallyRows(taps, advances, openingAmount = 0) {
+  const openingRow = Number(openingAmount || 0) > 0
+    ? [{
+      id: 'opening-balance',
+      type: 'opening',
+      date: taps[0]?.tap_date || advances[0]?.advance_date || formatDateKey(new Date()),
+      time: '',
+      tapCount: 0,
+      rate: 0,
+      advance: Number(openingAmount || 0),
+      amount: 0,
+    }]
+    : [];
   const tapRows = taps.map((tap) => ({
     id: `tap-${tap.id}`,
     type: 'tap',
@@ -168,7 +180,11 @@ function getRubberTallyRows(taps, advances) {
     amount: 0,
   }));
 
-  return [...tapRows, ...advanceRows].sort((a, b) => a.time.localeCompare(b.time));
+  return [...openingRow, ...tapRows, ...advanceRows].sort((a, b) => {
+    if (a.type === 'opening') return -1;
+    if (b.type === 'opening') return 1;
+    return a.time.localeCompare(b.time);
+  });
 }
 
 function getDayFromDateText(dateText) {
@@ -1277,7 +1293,7 @@ function RubberAccount({
   const [advanceAmount, setAdvanceAmount] = useState('');
   const [tapCount, setTapCount] = useState('1');
   const [openPaymentId, setOpenPaymentId] = useState(null);
-  const openTallyRows = getRubberTallyRows(taps, openAdvances);
+  const openTallyRows = getRubberTallyRows(taps, openAdvances, openingAdvanceTotal);
   const openTapCount = taps.reduce((sum, tap) => sum + Number(tap.count || 0), 0);
 
   function submitAdvance(event) {
@@ -1471,12 +1487,14 @@ function RubberTallyTable({
               : null;
 
             return (
-              <tr className={row.type === 'advance' ? 'advance-tally-row' : ''} key={row.id}>
+              <tr className={`${row.type}-tally-row`} key={row.id}>
                 <td>
-                  {new Date(`${row.date}T00:00:00`).toLocaleDateString('en-IN', {
-                    day: '2-digit',
-                    month: 'short',
-                  })}
+                  {row.type === 'opening'
+                    ? 'Opening'
+                    : new Date(`${row.date}T00:00:00`).toLocaleDateString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                    })}
                 </td>
                 <td>{row.tapCount || '-'}</td>
                 <td>{row.rate ? formatMoney(row.rate) : '-'}</td>
