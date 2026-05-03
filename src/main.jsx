@@ -1297,46 +1297,6 @@ function RubberAccount({
 
   return (
     <div className="rubber-account">
-      <form className="advance-form" onSubmit={submitTap}>
-        <div className="advance-entry">
-          <input
-            min="1"
-            type="number"
-            inputMode="numeric"
-            placeholder="Tap count"
-            value={tapCount}
-            onChange={(event) => setTapCount(event.target.value)}
-          />
-          <button type="submit">Add tap</button>
-        </div>
-        <input
-          type="text"
-          placeholder="Tap note optional"
-          value={tapNote}
-          onChange={(event) => setTapNote(event.target.value)}
-        />
-      </form>
-
-      <form className="advance-form" onSubmit={submitAdvance}>
-        <div className="advance-entry">
-          <input
-            min="1"
-            type="number"
-            inputMode="numeric"
-            placeholder="Advance amount"
-            value={advanceAmount}
-            onChange={(event) => setAdvanceAmount(event.target.value)}
-          />
-          <button type="submit">Add</button>
-        </div>
-        <input
-          type="text"
-          placeholder="Note optional"
-          value={advanceNote}
-          onChange={(event) => setAdvanceNote(event.target.value)}
-        />
-      </form>
-
       <div className="account-history">
         <div className="tally-head">
           <h3>Open tally</h3>
@@ -1355,9 +1315,19 @@ function RubberAccount({
           </div>
           <RubberTallyTable
             advances={openAdvances}
+            advanceAmount={advanceAmount}
+            advanceNote={advanceNote}
             onDeleteAdvance={onDeleteAdvance}
             onDeleteTap={onDeleteTap}
+            onSubmitAdvance={submitAdvance}
+            onSubmitTap={submitTap}
             rows={openTallyRows}
+            setAdvanceAmount={setAdvanceAmount}
+            setAdvanceNote={setAdvanceNote}
+            setTapCount={setTapCount}
+            setTapNote={setTapNote}
+            tapCount={tapCount}
+            tapNote={tapNote}
             taps={taps}
           />
           <div className="payment-actions shop-payment-actions tally-actions">
@@ -1457,12 +1427,24 @@ function RubberAccount({
 }
 
 function RubberTallyTable({
+  advanceAmount = '',
+  advanceNote = '',
   advances = [],
   onDeleteAdvance,
   onDeleteTap,
+  onSubmitAdvance,
+  onSubmitTap,
   rows,
+  setAdvanceAmount,
+  setAdvanceNote,
+  setTapCount,
+  setTapNote,
+  tapCount = '',
+  tapNote = '',
   taps = [],
 }) {
+  const editable = Boolean(onSubmitTap || onSubmitAdvance);
+
   return (
     <table className="tally-table rubber-tally-table">
       <thead>
@@ -1472,13 +1454,13 @@ function RubberTallyTable({
           <th>Rate</th>
           <th>Advance</th>
           <th>Amount</th>
-          {(onDeleteTap || onDeleteAdvance) && <th></th>}
+          {(onDeleteTap || onDeleteAdvance || editable) && <th></th>}
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
           <tr>
-            <td colSpan={onDeleteTap || onDeleteAdvance ? 6 : 5}>No entries found.</td>
+            <td colSpan={onDeleteTap || onDeleteAdvance || editable ? 6 : 5}>No entries found.</td>
           </tr>
         ) : (
           rows.map((row) => {
@@ -1501,7 +1483,7 @@ function RubberTallyTable({
                 <td>{row.rate ? formatMoney(row.rate) : '-'}</td>
                 <td>{row.advance ? formatMoney(row.advance) : '-'}</td>
                 <td>{row.amount ? formatMoney(row.amount) : '-'}</td>
-                {(onDeleteTap || onDeleteAdvance) && (
+                {(onDeleteTap || onDeleteAdvance || editable) && (
                   <td>
                     {row.type === 'tap' && tap && (
                       <button type="button" onClick={() => onDeleteTap(tap.id)}>Clear</button>
@@ -1514,6 +1496,76 @@ function RubberTallyTable({
               </tr>
             );
           })
+        )}
+        {onSubmitTap && (
+          <tr className="entry-row">
+            <td>New</td>
+            <td>
+              <form id="rubberTapForm" onSubmit={onSubmitTap}>
+                <input
+                  min="1"
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="Tap"
+                  value={tapCount}
+                  onChange={(event) => setTapCount(event.target.value)}
+                />
+              </form>
+            </td>
+            <td>{formatMoney(EMPLOYEE_TYPES.rubber.rate)}</td>
+            <td>-</td>
+            <td>{formatMoney((Number(tapCount) || 0) * EMPLOYEE_TYPES.rubber.rate)}</td>
+            <td>
+              <button type="submit" form="rubberTapForm">Add tap</button>
+            </td>
+          </tr>
+        )}
+        {onSubmitTap && (
+          <tr className="entry-note-row">
+            <td colSpan="6">
+              <input
+                type="text"
+                placeholder="Tap note optional"
+                value={tapNote}
+                onChange={(event) => setTapNote(event.target.value)}
+              />
+            </td>
+          </tr>
+        )}
+        {onSubmitAdvance && (
+          <tr className="entry-row advance-tally-row">
+            <td>New</td>
+            <td>-</td>
+            <td>-</td>
+            <td>
+              <form id="rubberAdvanceForm" onSubmit={onSubmitAdvance}>
+                <input
+                  min="1"
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="Advance"
+                  value={advanceAmount}
+                  onChange={(event) => setAdvanceAmount(event.target.value)}
+                />
+              </form>
+            </td>
+            <td>-</td>
+            <td>
+              <button type="submit" form="rubberAdvanceForm">Add</button>
+            </td>
+          </tr>
+        )}
+        {onSubmitAdvance && (
+          <tr className="entry-note-row">
+            <td colSpan="6">
+              <input
+                type="text"
+                placeholder="Advance note optional"
+                value={advanceNote}
+                onChange={(event) => setAdvanceNote(event.target.value)}
+              />
+            </td>
+          </tr>
         )}
       </tbody>
     </table>
