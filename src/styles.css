@@ -634,7 +634,7 @@ input {
 }
 
 .open-tally {
-  padding: 0;
+  padding: 10px;
 }
 
 .rubber-tally-table {
@@ -661,6 +661,10 @@ input {
   background: #fffaf0;
 }
 
+.tally-actions {
+  margin-top: 10px;
+}
+
 .account-history {
   margin-top: 12px;
 }
@@ -668,6 +672,18 @@ input {
 .account-history h3 {
   margin: 0 0 8px;
   font-size: 15px;
+}
+
+.tally-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.tally-head h3 {
+  margin: 0;
 }
 
 .rubber-summary {

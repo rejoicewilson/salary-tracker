@@ -1297,53 +1297,6 @@ function RubberAccount({
 
   return (
     <div className="rubber-account">
-      <div className="advance-summary rubber-summary">
-        <div>
-          <span>Open earned</span>
-          <strong>{formatMoney(earned)}</strong>
-        </div>
-        <div>
-          <span>{extraAdvance > 0 ? 'Advance balance' : 'Pending'}</span>
-          <strong>{formatMoney(extraAdvance > 0 ? extraAdvance : balance)}</strong>
-        </div>
-      </div>
-
-      <div className={`shop-payment-card ${balance === 0 ? 'paid' : 'pending'}`}>
-        <div className="shop-payment-top">
-          <div>
-            <span>Open payment</span>
-            <strong>{extraAdvance > 0 ? `${formatMoney(extraAdvance)} extra advance` : `${formatMoney(balance)} pending`}</strong>
-            <div className="rubber-lines">
-              <span>Earned: {formatMoney(earned)}</span>
-              <span>Advance: {formatMoney(advanceTotal)}</span>
-              {openingAdvanceTotal > 0 && <span>Opening: {formatMoney(openingAdvanceTotal)}</span>}
-              {closedThroughDay > 0 && <span>Started after day {closedThroughDay}</span>}
-            </div>
-          </div>
-          <span className={`payment-seal ${balance === 0 ? 'paid' : 'not-paid'}`}>
-            <span>{balance === 0 ? 'Clear' : 'Open'}</span>
-          </span>
-        </div>
-        <div className="payment-actions shop-payment-actions">
-          <button
-            type="button"
-            className="mark-paid"
-            disabled={balance === 0 && extraAdvance === 0}
-            onClick={() => onAddPayment(balance, extraAdvance)}
-          >
-            Close payment
-          </button>
-          <button
-            type="button"
-            className="clear-paid"
-            disabled={payments.length === 0}
-            onClick={() => payments[0] && onDeletePayment(payments[0].id)}
-          >
-            Clear
-          </button>
-        </div>
-      </div>
-
       <form className="advance-form" onSubmit={submitTap}>
         <div className="advance-entry">
           <input
@@ -1385,12 +1338,20 @@ function RubberAccount({
       </form>
 
       <div className="account-history">
-        <h3>Open tally</h3>
+        <div className="tally-head">
+          <h3>Open tally</h3>
+          <span className={`payment-seal ${balance === 0 ? 'paid' : 'not-paid'}`}>
+            <span>{balance === 0 ? 'Clear' : 'Open'}</span>
+          </span>
+        </div>
         <div className="tally-table-wrap open-tally">
           <div className="tally-summary">
             <span>Taps: {taps.reduce((sum, tap) => sum + Number(tap.count || 0), 0)}</span>
             <span>Earned: {formatMoney(earned)}</span>
             <span>Advance: {formatMoney(advanceTotal)}</span>
+            <span>{extraAdvance > 0 ? 'Extra advance' : 'Pending'}: {formatMoney(extraAdvance > 0 ? extraAdvance : balance)}</span>
+            {openingAdvanceTotal > 0 && <span>Opening: {formatMoney(openingAdvanceTotal)}</span>}
+            {closedThroughDay > 0 && <span>After day {closedThroughDay}</span>}
           </div>
           <RubberTallyTable
             advances={openAdvances}
@@ -1399,6 +1360,24 @@ function RubberAccount({
             rows={openTallyRows}
             taps={taps}
           />
+          <div className="payment-actions shop-payment-actions tally-actions">
+            <button
+              type="button"
+              className="mark-paid"
+              disabled={balance === 0 && extraAdvance === 0}
+              onClick={() => onAddPayment(balance, extraAdvance)}
+            >
+              Close payment
+            </button>
+            <button
+              type="button"
+              className="clear-paid"
+              disabled={payments.length === 0}
+              onClick={() => payments[0] && onDeletePayment(payments[0].id)}
+            >
+              Clear
+            </button>
+          </div>
         </div>
       </div>
 
