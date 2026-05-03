@@ -719,16 +719,6 @@ input {
   font-weight: 900;
 }
 
-.rubber-action-card button span {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
-  line-height: 1;
-}
-
 .advance-action {
   background: linear-gradient(180deg, #ffffff 0%, #f7fbf8 100%);
 }

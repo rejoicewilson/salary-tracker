@@ -1332,7 +1332,6 @@ function RubberAccount({
                 />
               </label>
               <button type="submit">
-                <span>+</span>
                 Add tap
               </button>
             </form>
@@ -1349,7 +1348,6 @@ function RubberAccount({
                 />
               </label>
               <button type="submit">
-                <span>+</span>
                 Add advance
               </button>
             </form>
