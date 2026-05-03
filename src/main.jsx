@@ -1493,7 +1493,6 @@ function RubberTallyTable({
         <tr>
           <th>Date</th>
           <th>Tap</th>
-          <th>Rate</th>
           <th>Advance</th>
           <th>Amount</th>
           {(onDeleteTap || onDeleteAdvance) && <th></th>}
@@ -1502,7 +1501,7 @@ function RubberTallyTable({
       <tbody>
         {rows.length === 0 ? (
           <tr>
-            <td colSpan={onDeleteTap || onDeleteAdvance ? 6 : 5}>No entries found.</td>
+            <td colSpan={onDeleteTap || onDeleteAdvance ? 5 : 4}>No entries found.</td>
           </tr>
         ) : (
           rows.map((row) => {
@@ -1524,7 +1523,6 @@ function RubberTallyTable({
                     })}
                 </td>
                 <td>{row.tapCount || '-'}</td>
-                <td>{row.rate ? formatMoney(row.rate) : '-'}</td>
                 <td>{row.advance ? formatMoney(row.advance) : '-'}</td>
                 <td>{row.amount ? formatMoney(row.amount) : '-'}</td>
                 {(onDeleteTap || onDeleteAdvance) && (
@@ -1546,13 +1544,12 @@ function RubberTallyTable({
             <tr className="tally-total-row">
               <td>Total</td>
               <td>{totals.taps}</td>
-              <td>-</td>
               <td>{formatMoney(totals.advance)}</td>
               <td>{formatMoney(totals.amount)}</td>
               {(onDeleteTap || onDeleteAdvance) && <td></td>}
             </tr>
             <tr className="tally-balance-row">
-              <td colSpan={onDeleteTap || onDeleteAdvance ? 6 : 5}>
+              <td colSpan={onDeleteTap || onDeleteAdvance ? 5 : 4}>
                 {totals.label}: {formatMoney(totals.pending)}
               </td>
             </tr>
