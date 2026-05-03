@@ -776,8 +776,8 @@ function App() {
         <div className="header-top">
           <img className="app-logo" src="/icon.svg" alt="" />
           <div className="header-copy">
-            <h1>Attendance & wages</h1>
-            <p className="header-subtitle">Salary tracker</p>
+            <h1>Salary tracker</h1>
+            <p className="header-subtitle">@copyright Rejoice Wilson E</p>
           </div>
           <div className="sync-pill">{isSupabaseConfigured ? 'Sync' : 'Local'}</div>
         </div>
