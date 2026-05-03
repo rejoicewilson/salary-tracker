@@ -774,9 +774,10 @@ function App() {
     <main className="phone-shell">
       <section className="app-header">
         <div className="header-top">
+          <img className="app-logo" src="/icon.svg" alt="" />
           <div className="header-copy">
-            <p className="eyebrow">Salary tracker</p>
             <h1>Attendance & wages</h1>
+            <p className="header-subtitle">Salary tracker</p>
           </div>
           <div className="sync-pill">{isSupabaseConfigured ? 'Sync' : 'Local'}</div>
         </div>

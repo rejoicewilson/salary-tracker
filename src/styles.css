@@ -49,15 +49,41 @@ button {
 .header-controls {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 14px;
 }
 
+.header-top {
+  justify-content: flex-start;
+}
+
+.app-logo {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  box-shadow: 0 8px 18px rgba(22, 97, 58, 0.18);
+}
+
 .header-copy {
+  flex: 1;
   min-width: 0;
 }
 
+.header-copy h1 {
+  margin-bottom: 2px;
+  line-height: 1.08;
+}
+
+.header-subtitle {
+  margin: 0;
+  color: #5e6f65;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .header-controls {
+  justify-content: space-between;
   margin-top: 14px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.74);
