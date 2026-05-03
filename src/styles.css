@@ -657,24 +657,44 @@ input {
   padding: 4px 7px;
 }
 
-.rubber-tally-table input {
-  min-height: 32px;
-  border-radius: 8px;
-  padding: 5px 7px;
-  font-size: 12px;
-}
-
-.entry-row td {
-  background: #f8fbf9;
-}
-
-.entry-note-row td {
-  background: #f8fbf9;
-  padding: 6px;
-}
-
 .advance-tally-row td {
   background: #fffaf0;
+}
+
+.rubber-quick-actions {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.rubber-quick-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  gap: 8px;
+}
+
+.rubber-quick-row input {
+  min-height: 40px;
+}
+
+.rubber-quick-row button {
+  border: 0;
+  border-radius: 10px;
+  background: #16613a;
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.tally-total-row td {
+  background: #f1f6f2;
+  font-weight: 900;
+}
+
+.tally-balance-row td {
+  background: #e8f3ec;
+  color: #0f4f2f;
+  font-weight: 900;
+  text-align: right;
 }
 
 .tally-actions {
