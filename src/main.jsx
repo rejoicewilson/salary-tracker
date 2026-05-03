@@ -1384,14 +1384,20 @@ function RubberAccount({
             <p className="status">No rubber payment closed for this month.</p>
           ) : (
             payments.map((payment) => {
+              const paymentClosedAt = getRubberPaymentTime(payment);
+              const previousPayment = payments
+                .filter((item) => item.id !== payment.id && getRubberPaymentTime(item) < paymentClosedAt)
+                .sort((a, b) => getRubberPaymentTime(b).localeCompare(getRubberPaymentTime(a)))[0];
+              const periodOpeningAdvance = Number(previousPayment?.carry_forward_amount || 0);
               const periodTaps = getRubberPaymentPeriodTaps(payment, payments, allTaps);
               const periodAdvances = getRubberPaymentPeriodAdvances(payment, payments, advances);
               const periodTapCount = periodTaps.reduce((sum, tap) => sum + Number(tap.count || 0), 0);
               const periodEarned = periodTapCount * EMPLOYEE_TYPES.rubber.rate;
-              const periodAdvanceTotal = periodAdvances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
+              const periodAdvanceTotal = periodOpeningAdvance
+                + periodAdvances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
               const periodCarryForward = Number(payment.carry_forward_amount || 0);
               const periodPaidAmount = Number(payment.amount || 0);
-              const periodRows = getRubberTallyRows(periodTaps, periodAdvances);
+              const periodRows = getRubberTallyRows(periodTaps, periodAdvances, periodOpeningAdvance);
               const expanded = openPaymentId === payment.id;
 
               return (
